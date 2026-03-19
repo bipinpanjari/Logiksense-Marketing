@@ -2,12 +2,15 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { SignOptions } from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
-import { getDatabase } from '../../shared/database';
 import { CreateUserDto, LoginUserDto, SignUpResponseDto } from '../../shared/types';
+import { PrismaService } from '../../shared/prisma.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private prisma: PrismaService
+  ) {}
 
   private resolveExpiry(value: string | undefined, fallback: SignOptions['expiresIn']): SignOptions['expiresIn'] {
     if (!value) return fallback;
@@ -16,53 +19,61 @@ export class AuthService {
   }
 
   async signup(createUserDto: CreateUserDto): Promise<SignUpResponseDto> {
-    const { email, password, firstName, lastName } = createUserDto;
-    const db = getDatabase();
+    const email = (createUserDto.email || '').trim().toLowerCase();
+    const password = createUserDto.password;
+    const firstName = (createUserDto.firstName || '').trim();
+    const lastName = (createUserDto.lastName || '').trim();
 
     try {
       // Check if user exists
-      const existingUser = await db.query('SELECT id FROM customers WHERE email = $1', [email]);
-      if (existingUser.rows.length > 0) {
+      const existingUser = await this.prisma.customer.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (existingUser) {
         throw new ConflictException('User already exists with this email');
       }
 
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Create customer
-      const userResult = await db.query(
-        `INSERT INTO customers (email, password_hash, first_name, last_name, plan_tier, subscription_status)
-         VALUES ($1, $2, $3, $4, 'starter', 'trial')
-         RETURNING id, email, first_name, last_name`,
-        [email, passwordHash, firstName, lastName]
-      );
+      const result = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.customer.create({
+          data: {
+            email,
+            passwordHash,
+            firstName,
+            lastName,
+            planTier: 'starter',
+            subscriptionStatus: 'trial',
+          },
+          select: { id: true, email: true, firstName: true, lastName: true },
+        });
 
-      const user = userResult.rows[0];
-      const customerId = user.id;
+        const workspace = await tx.workspace.create({
+          data: {
+            customerId: user.id,
+            name: `${firstName || 'New'}'s Workspace`,
+          },
+          select: { id: true, name: true },
+        });
 
-      // Create default workspace
-      const workspaceResult = await db.query(
-        `INSERT INTO workspaces (customer_id, name)
-         VALUES ($1, $2)
-         RETURNING id, name`,
-        [customerId, `${firstName}'s Workspace`]
-      );
-
-      const workspace = workspaceResult.rows[0];
+        return { user, workspace };
+      });
 
       // Generate tokens
-      const tokens = this.generateTokens(customerId, workspace.id, email, 'user');
+      const tokens = this.generateTokens(result.user.id, result.workspace.id, email, 'user');
 
       return {
         user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          id: result.user.id,
+          email: result.user.email,
+          firstName: result.user.firstName || '',
+          lastName: result.user.lastName || '',
         },
         workspace: {
-          id: workspace.id,
-          name: workspace.name,
+          id: result.workspace.id,
+          name: result.workspace.name,
         },
         tokens,
       };
@@ -73,39 +84,36 @@ export class AuthService {
   }
 
   async login(loginUserDto: LoginUserDto): Promise<SignUpResponseDto> {
-    const { email, password } = loginUserDto;
-    const db = getDatabase();
+    const email = (loginUserDto.email || '').trim().toLowerCase();
+    const password = loginUserDto.password;
 
     try {
       // Find user
-      const userResult = await db.query(
-        'SELECT id, email, password_hash, first_name, last_name FROM customers WHERE email = $1',
-        [email]
-      );
+      const user = await this.prisma.customer.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        select: { id: true, email: true, passwordHash: true, firstName: true, lastName: true },
+      });
 
-      if (userResult.rows.length === 0) {
+      if (!user) {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      const user = userResult.rows[0];
-
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials');
       }
 
       // Get default workspace
-      const workspaceResult = await db.query(
-        'SELECT id, name FROM workspaces WHERE customer_id = $1 ORDER BY created_at LIMIT 1',
-        [user.id]
-      );
+      const workspace = await this.prisma.workspace.findFirst({
+        where: { customerId: user.id },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, name: true },
+      });
 
-      if (workspaceResult.rows.length === 0) {
+      if (!workspace) {
         throw new UnauthorizedException('No workspace found for this user');
       }
-
-      const workspace = workspaceResult.rows[0];
 
       // Generate tokens
       const tokens = this.generateTokens(user.id, workspace.id, user.email, 'user');
@@ -114,8 +122,8 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
         },
         workspace: {
           id: workspace.id,
@@ -185,11 +193,10 @@ export class AuthService {
   }
 
   async validateUser(userId: string): Promise<any> {
-    const db = getDatabase();
-    const result = await db.query(
-      'SELECT id, email, first_name, last_name FROM customers WHERE id = $1',
-      [userId]
-    );
-    return result.rows[0] || null;
+    const user = await this.prisma.customer.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, firstName: true, lastName: true },
+    });
+    return user || null;
   }
 }

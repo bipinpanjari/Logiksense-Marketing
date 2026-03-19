@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 // import { BullModule } from '@nestjs/bull';
 import { AuthMiddleware, WorkspaceMiddleware } from './shared/auth.middleware';
+import { PrismaService } from './shared/prisma.service';
 import { AuthService } from './modules/auth/auth.service';
 import { RegistrationService } from './modules/auth/registration.service';
 import { EmailValidationService } from './modules/auth/email-validation.service';
@@ -56,6 +57,7 @@ import { MarketingEmailService } from './modules/email/marketing-email.service';
     RegistrationService,
     EmailValidationService,
     WorkspaceService,
+    PrismaService,
     LeadService,
     LeadExtractionService,
     LeadImportService,

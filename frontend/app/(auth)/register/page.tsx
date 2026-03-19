@@ -54,25 +54,58 @@ export default function RegisterPage() {
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <label className="text-sm font-medium">First Name</label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+            <label className="text-sm font-medium text-foreground/90">First Name</label>
+            <Input
+              placeholder="John"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Last Name</label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+            <label className="text-sm font-medium text-foreground/90">Last Name</label>
+            <Input
+              placeholder="Doe"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Email</label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <label className="text-sm font-medium text-foreground/90">Email</label>
+          <Input
+            type="email"
+            placeholder="you@company.com"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Password</label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <label className="text-sm font-medium text-foreground/90">Password</label>
+          <Input
+            type="password"
+            placeholder="Create a strong password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Confirm Password</label>
-          <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+          <label className="text-sm font-medium text-foreground/90">Confirm Password</label>
+          <Input
+            type="password"
+            placeholder="Re-enter password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button className="w-full" type="submit" disabled={submitting}>

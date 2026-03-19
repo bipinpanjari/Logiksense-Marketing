@@ -46,12 +46,26 @@ export default function LoginPage() {
     <AuthCard title="Sign In" description="Access your marketing automation workspace">
       <form className="space-y-4" onSubmit={onSubmit}>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Email</label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <label className="text-sm font-medium text-foreground/90">Email</label>
+          <Input
+            type="email"
+            placeholder="you@company.com"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Password</label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <label className="text-sm font-medium text-foreground/90">Password</label>
+          <Input
+            type="password"
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button className="w-full" type="submit" disabled={submitting}>

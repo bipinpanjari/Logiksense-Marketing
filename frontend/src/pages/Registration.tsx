@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Mail, CheckCircle, AlertCircle, Info, ChevronRight, Copy } from 'lucide-react';
 
 interface RegistrationStep {
@@ -17,7 +19,7 @@ interface ValidationResult {
 }
 
 const Registration: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   // Step 1: Company Info
   const [step, setStep] = useState(1);
   const [sessionId, setSessionId] = useState('');
@@ -45,7 +47,7 @@ const Registration: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
   const steps: RegistrationStep[] = [
     { step: 1, title: 'Company Info', description: 'Basic company information' },
@@ -243,7 +245,7 @@ const Registration: React.FC = () => {
   };
 
   const handleFinishOnboarding = () => {
-    navigate('/dashboard');
+    router.push('/dashboard');
   };
 
   const copyToClipboard = (text: string) => {
