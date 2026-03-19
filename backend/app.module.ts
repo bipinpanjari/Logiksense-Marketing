@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 // import { BullModule } from '@nestjs/bull';
 import { AuthMiddleware, WorkspaceMiddleware } from './shared/auth.middleware';
+import { PrismaService } from './shared/prisma.service';
 import { AuthService } from './modules/auth/auth.service';
 import { RegistrationService } from './modules/auth/registration.service';
 import { EmailValidationService } from './modules/auth/email-validation.service';
@@ -11,6 +12,7 @@ import { WorkspaceService } from './modules/workspaces/workspace.service';
 import { WorkspaceController } from './modules/workspaces/workspace.controller';
 import { LeadService } from './modules/leads/lead.service';
 import { LeadImportService } from './modules/leads/lead-import.service';
+import { LeadExtractionService } from './modules/leads/lead-extraction.service';
 import { LeadScoringService } from './modules/leads/lead-scoring.service';
 import { ContactSegmentationService } from './modules/leads/contact-segmentation.service';
 import { EmailAnalyticsService } from './modules/leads/email-analytics.service';
@@ -19,6 +21,10 @@ import { WebhookService } from './modules/leads/webhook.service';
 import { WebhookController } from './modules/leads/webhook.controller';
 import { ContactService } from './modules/contacts/contact.service';
 import { ContactController } from './modules/contacts/contact.controller';
+import { EmailController } from './modules/email/email.controller';
+import { EmailService } from './modules/email/email.service';
+import { MarketingEmailController } from './modules/email/marketing-email.controller';
+import { MarketingEmailService } from './modules/email/marketing-email.service';
 // import { EmailModule } from '@modules/email/email.module';
 
 @Module({
@@ -43,19 +49,25 @@ import { ContactController } from './modules/contacts/contact.controller';
     LeadController,
     WebhookController,
     ContactController,
+    EmailController,
+    MarketingEmailController,
   ],
   providers: [
     AuthService,
     RegistrationService,
     EmailValidationService,
     WorkspaceService,
+    PrismaService,
     LeadService,
+    LeadExtractionService,
     LeadImportService,
     LeadScoringService,
     ContactSegmentationService,
     EmailAnalyticsService,
     WebhookService,
     ContactService,
+    EmailService,
+    MarketingEmailService,
   ],
 })
 export class AppModule implements NestModule {

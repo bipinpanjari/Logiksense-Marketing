@@ -314,13 +314,6 @@ export class RegistrationService {
 
       const company = companyResult.rows[0];
 
-      // Create email config
-      await db.query(
-        `INSERT INTO email_configs (customer_id, sending_email, domain, dkim_selector, dkim_valid, spf_valid)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [user.id, session.sending_email, session.domain, session.dkim_selector, session.dkim_valid, session.spf_valid]
-      );
-
       // Create workspace
       const workspaceResult = await db.query(
         `INSERT INTO workspaces (customer_id, name, company_id)
@@ -330,6 +323,21 @@ export class RegistrationService {
       );
 
       const workspace = workspaceResult.rows[0];
+
+      // Create email config (workspace-scoped)
+      await db.query(
+        `INSERT INTO email_configs (workspace_id, customer_id, sending_email, domain, dkim_selector, dkim_valid, spf_valid)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          workspace.id,
+          user.id,
+          session.sending_email,
+          session.domain,
+          session.dkim_selector,
+          session.dkim_valid,
+          session.spf_valid,
+        ]
+      );
 
       // Delete session (cleanup)
       await db.query('DELETE FROM registration_sessions WHERE session_id = $1', [sessionId]);

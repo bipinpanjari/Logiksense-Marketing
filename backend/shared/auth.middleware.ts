@@ -10,14 +10,19 @@ export interface RequestWithUser extends Request {
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
   use(req: RequestWithUser, res: Response, next: NextFunction) {
+    const requestPath = this.getRequestPath(req);
+    if (this.isPublicRoute(requestPath)) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      // Allow unauthenticated access to public routes
-      if (this.isPublicRoute(req.path)) {
-        return next();
-      }
       throw new UnauthorizedException('Missing authorization header');
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Invalid authorization format');
     }
 
     try {
@@ -26,7 +31,11 @@ export class AuthMiddleware implements NestMiddleware {
         throw new UnauthorizedException('Invalid token format');
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret') as AuthPayload;
+      if (!process.env.JWT_SECRET) {
+        throw new UnauthorizedException('JWT secret is not configured');
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET) as AuthPayload;
       req.user = decoded;
       next();
     } catch (error) {
@@ -34,8 +43,31 @@ export class AuthMiddleware implements NestMiddleware {
     }
   }
 
+  private getRequestPath(req: Request): string {
+    const raw = (req as any).originalUrl || req.url || req.path || '';
+    return raw.split('?')[0] || '';
+  }
+
   private isPublicRoute(path: string): boolean {
-    const publicRoutes = ['/api/auth/signup', '/api/auth/login', '/api/health', '/api/auth/refresh'];
+    if (path === '/favicon.ico') return true;
+
+    if (
+      path.startsWith('/api/auth/') &&
+      !path.startsWith('/api/auth/me') &&
+      !path.startsWith('/api/auth/onboarding/complete') &&
+      !path.startsWith('/api/auth/profile') &&
+      !path.startsWith('/api/auth/settings')
+    ) {
+      return true;
+    }
+
+    const publicRoutes = [
+      '/api/auth/signup',
+      '/api/auth/login',
+      '/api/auth/refresh',
+      '/api/auth/registration',
+      '/api/health',
+    ];
     return publicRoutes.some(route => path.startsWith(route));
   }
 }

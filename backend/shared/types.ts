@@ -29,6 +29,7 @@ export interface SignUpResponseDto {
     email: string;
     firstName: string;
     lastName: string;
+    onboardingCompleted: boolean;
   };
   workspace: {
     id: string;
