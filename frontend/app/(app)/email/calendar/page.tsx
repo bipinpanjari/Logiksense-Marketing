@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listCampaigns } from "@/lib/marketing-email";
+import { listCampaigns, updateCampaign } from "@/lib/marketing-email";
 
 type CampaignEvent = {
   id: string;
@@ -16,6 +16,69 @@ type CampaignEvent = {
 };
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const POPULAR_TIMEZONES = [
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Amsterdam",
+  "Europe/Stockholm",
+  "Europe/Warsaw",
+  "Europe/Athens",
+  "Europe/Istanbul",
+  "Europe/Moscow",
+  "Africa/Cairo",
+  "Africa/Nairobi",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Riyadh",
+  "Asia/Tehran",
+  "Asia/Karachi",
+  "Asia/Kolkata",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+  "Asia/Ho_Chi_Minh",
+  "Asia/Hong_Kong",
+  "Asia/Shanghai",
+  "Asia/Taipei",
+  "Asia/Seoul",
+  "Asia/Tokyo",
+  "Asia/Singapore",
+  "Australia/Perth",
+  "Australia/Adelaide",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+  "Pacific/Honolulu",
+  "America/Anchorage",
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Chicago",
+  "America/New_York",
+  "America/Toronto",
+  "America/Mexico_City",
+  "America/Bogota",
+  "America/Lima",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+];
+
+function getTimeZoneOptions(): string[] {
+  try {
+    const supportedValuesOf = (Intl as any)?.supportedValuesOf;
+    if (typeof supportedValuesOf === "function") {
+      const all = supportedValuesOf("timeZone") as string[];
+      const withUtc = all.includes("UTC") ? all : ["UTC", ...all];
+      const popular = POPULAR_TIMEZONES.filter((tz) => withUtc.includes(tz));
+      const rest = withUtc.filter((tz) => !popular.includes(tz));
+      return [...popular, ...rest];
+    }
+  } catch {
+  }
+  return [...POPULAR_TIMEZONES];
+}
 const MONTHS = [
   "January",
   "February",
@@ -36,6 +99,19 @@ function toDateKey(d: Date) {
   const mm = `${d.getMonth() + 1}`.padStart(2, "0");
   const dd = `${d.getDate()}`.padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function toDateKeyInZone(d: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value || "0000";
+  const m = parts.find((p) => p.type === "month")?.value || "01";
+  const day = parts.find((p) => p.type === "day")?.value || "01";
+  return `${y}-${m}-${day}`;
 }
 
 function parseDateInput(value: string): Date | null {
@@ -60,43 +136,88 @@ function startOfMonthGrid(month: Date) {
 
 export default function EmailCalendarPage() {
   const [monthCursor, setMonthCursor] = useState(() => new Date());
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
+  const [timeZone, setTimeZone] = useState("UTC");
+  const [timeZoneOpen, setTimeZoneOpen] = useState(false);
+  const [timeZoneQuery, setTimeZoneQuery] = useState("UTC");
+  const [draggingCampaignId, setDraggingCampaignId] = useState<string>("");
   const [events, setEvents] = useState<CampaignEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [rangeFrom, setRangeFrom] = useState<string>("");
   const [rangeTo, setRangeTo] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
   const pickerRootRef = useRef<HTMLDivElement | null>(null);
+  const timeZoneRootRef = useRef<HTMLDivElement | null>(null);
+  const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
+
+  const resolvedTimeZone = useMemo(() => {
+    if (timeZoneOptions.includes(timeZone)) return timeZone;
+    return "UTC";
+  }, [timeZone, timeZoneOptions]);
+
+  const filteredTimeZones = useMemo(() => {
+    const q = timeZoneQuery.trim().toLowerCase();
+    if (!q) return timeZoneOptions.slice(0, 240);
+    return timeZoneOptions.filter((tz) => tz.toLowerCase().includes(q)).slice(0, 200);
+  }, [timeZoneOptions, timeZoneQuery]);
+
+  const visibleRange = useMemo(() => {
+    if (viewMode === "day") {
+      const base = selectedDate ? parseDateInput(selectedDate) || monthCursor : monthCursor;
+      return { start: clampToDayStart(base), end: clampToDayEnd(base) };
+    }
+    if (viewMode === "week") {
+      const d = new Date(monthCursor);
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999);
+      return { start, end };
+    }
+    const start = startOfMonthGrid(monthCursor);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41, 23, 59, 59, 999);
+    return { start, end };
+  }, [monthCursor, viewMode, selectedDate]);
+
+  async function loadEvents() {
+    setLoading(true);
+    setError("");
+    try {
+      const fromDate = rangeFrom ? parseDateInput(rangeFrom) : visibleRange.start;
+      const toDate = rangeTo ? parseDateInput(rangeTo) : visibleRange.end;
+
+      const data = await listCampaigns({
+        from: clampToDayStart(fromDate || visibleRange.start).toISOString(),
+        to: clampToDayEnd(toDate || visibleRange.end).toISOString(),
+      });
+
+      const normalized = (Array.isArray(data) ? data : [])
+        .map((item: any) => {
+          const rawDate = item.scheduled_at || item.launched_at || item.created_at;
+          const date = rawDate ? new Date(rawDate) : null;
+          if (!date || Number.isNaN(date.getTime())) return null;
+          return {
+            id: item.id,
+            name: item.name,
+            status: item.status || "draft",
+            when: date,
+            audience: Number(item.audience_count || 0),
+          } as CampaignEvent;
+        })
+        .filter(Boolean) as CampaignEvent[];
+      setEvents(normalized);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load calendar");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await listCampaigns();
-        const normalized = (Array.isArray(data) ? data : [])
-          .map((item: any) => {
-            const rawDate = item.scheduled_at || item.launched_at || item.created_at;
-            const date = rawDate ? new Date(rawDate) : null;
-            if (!date || Number.isNaN(date.getTime())) return null;
-            return {
-              id: item.id,
-              name: item.name,
-              status: item.status || "draft",
-              when: date,
-              audience: Number(item.audience_count || 0),
-            } as CampaignEvent;
-          })
-          .filter(Boolean) as CampaignEvent[];
-        setEvents(normalized);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load calendar");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthCursor, viewMode, selectedDate, rangeFrom, rangeTo]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -125,6 +246,51 @@ export default function EmailCalendarPage() {
     };
   }, [pickerOpen]);
 
+  useEffect(() => {
+    if (!timeZoneOpen) return;
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const root = timeZoneRootRef.current;
+      if (!root) return;
+      const target = event.target as Node | null;
+      if (target && root.contains(target)) return;
+      setTimeZoneOpen(false);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setTimeZoneOpen(false);
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === "Backspace") {
+        setTimeZoneQuery((prev) => prev.slice(0, -1));
+        return;
+      }
+
+      if (event.key === " ") {
+        event.preventDefault();
+        setTimeZoneQuery((prev) => `${prev} `);
+        return;
+      }
+
+      if (event.key.length === 1) {
+        setTimeZoneQuery((prev) => `${prev}${event.key}`);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [timeZoneOpen]);
+
   const eventsByDate = useMemo(() => {
     const from = rangeFrom ? parseDateInput(rangeFrom) : null;
     const to = rangeTo ? parseDateInput(rangeTo) : null;
@@ -137,13 +303,13 @@ export default function EmailCalendarPage() {
       if (fromMs !== null && ts < fromMs) return;
       if (toMs !== null && ts > toMs) return;
 
-      const key = toDateKey(evt.when);
+      const key = toDateKeyInZone(evt.when, resolvedTimeZone);
       const existing = map.get(key) || [];
       existing.push(evt);
       map.set(key, existing);
     });
     return map;
-  }, [events, rangeFrom, rangeTo]);
+  }, [events, rangeFrom, rangeTo, resolvedTimeZone]);
 
   const gridDays = useMemo(() => {
     const start = startOfMonthGrid(monthCursor);
@@ -158,11 +324,63 @@ export default function EmailCalendarPage() {
   const todayKey = toDateKey(new Date());
   const isPanelOpen = Boolean(selectedDate);
 
+  const statusLegend = [
+    { key: "active", className: "bg-green-500/10 text-green-700 border-green-200" },
+    { key: "scheduled", className: "bg-blue-500/10 text-blue-700 border-blue-200" },
+    { key: "paused", className: "bg-amber-500/10 text-amber-700 border-amber-200" },
+    { key: "draft", className: "bg-slate-500/10 text-slate-700 border-slate-200" },
+  ];
+
+  const weekDays = useMemo(() => {
+    const d = new Date(monthCursor);
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+    return Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  }, [monthCursor]);
+
+  async function handleReschedule(campaignId: string, dateKey: string) {
+    if (!campaignId) return;
+    setUpdating(true);
+    setError("");
+    try {
+      await updateCampaign(campaignId, {
+        scheduledAt: new Date(`${dateKey}T09:00:00`).toISOString(),
+        status: "scheduled",
+      });
+      await loadEvents();
+    } catch (e: any) {
+      setError(e?.message || "Failed to reschedule");
+    } finally {
+      setUpdating(false);
+      setDraggingCampaignId("");
+    }
+  }
+
+  async function handleQuickAction(campaignId: string, action: "launch" | "pause" | "edit", currentName: string) {
+    setUpdating(true);
+    setError("");
+    try {
+      if (action === "launch") {
+        await updateCampaign(campaignId, { status: "active" });
+      } else if (action === "pause") {
+        await updateCampaign(campaignId, { status: "paused" });
+      } else {
+        const nextName = window.prompt("Edit campaign name", currentName);
+        if (!nextName || !nextName.trim()) return;
+        await updateCampaign(campaignId, { name: nextName.trim() });
+      }
+      await loadEvents();
+    } catch (e: any) {
+      setError(e?.message || "Failed to update campaign");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Campaign Calendar</h1>
-        <p className="text-sm text-muted-foreground">Google Calendar-style monthly planner with campaign events per date.</p>
+        <p className="text-sm text-muted-foreground">Google-like planner with month/week/day views, drag-drop scheduling, quick actions, and timezone support.</p>
       </div>
 
       <div className={`grid gap-6 ${isPanelOpen ? "xl:grid-cols-[1fr_340px]" : "grid-cols-1"}`}>
@@ -317,6 +535,75 @@ export default function EmailCalendarPage() {
               ) : null}
             </div>
             <div className="flex items-center gap-2">
+              <div className="relative mr-2" ref={timeZoneRootRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeZoneQuery("");
+                    setTimeZoneOpen((v) => !v);
+                  }}
+                  className="flex h-9 w-[240px] items-center justify-between rounded-md border border-input bg-background px-2 text-xs hover:bg-muted"
+                  aria-haspopup="listbox"
+                  aria-expanded={timeZoneOpen}
+                >
+                  <span className="truncate">{resolvedTimeZone}</span>
+                  <span className="text-[10px] text-muted-foreground">▼</span>
+                </button>
+
+                {timeZoneOpen ? (
+                  <div className="absolute right-0 top-full z-10 mt-2 w-[360px] overflow-hidden rounded-lg border border-border bg-card shadow-md">
+                    <div className="flex items-center justify-between border-b border-border px-2 py-2 text-[11px] text-muted-foreground">
+                      <span className="truncate">
+                        {timeZoneQuery ? `Filter: ${timeZoneQuery}` : "Type to filter timezones"}
+                      </span>
+                      {timeZoneQuery ? (
+                        <button
+                          type="button"
+                          onClick={() => setTimeZoneQuery("")}
+                          className="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-muted"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="max-h-[320px] overflow-auto p-1" role="listbox" aria-label="Timezone options">
+                      {filteredTimeZones.length === 0 ? (
+                        <div className="px-2 py-2 text-xs text-muted-foreground">No matches</div>
+                      ) : (
+                        filteredTimeZones.map((tz) => (
+                          <button
+                            key={tz}
+                            type="button"
+                            onClick={() => {
+                              setTimeZone(tz);
+                              setTimeZoneQuery(tz);
+                              setTimeZoneOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-xs hover:bg-muted ${
+                              tz === resolvedTimeZone ? "bg-muted" : ""
+                            }`}
+                          >
+                            <span className="truncate">{tz}</span>
+                            {tz === resolvedTimeZone ? <span className="text-[10px] text-muted-foreground">selected</span> : null}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="mr-2 flex items-center gap-1 rounded-md border border-border p-1">
+                {(["month", "week", "day"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={`rounded px-2 py-1 text-xs font-medium ${viewMode === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                    onClick={() => setViewMode(v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -336,53 +623,150 @@ export default function EmailCalendarPage() {
           <CardContent className="space-y-2">
             {loading ? <p className="text-sm text-muted-foreground">Loading campaigns...</p> : null}
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {updating ? <p className="text-sm text-muted-foreground">Applying updates...</p> : null}
 
-            <div className="grid grid-cols-7 gap-2 text-xs font-medium text-muted-foreground">
-              {WEEK_DAYS.map((w) => (
-                <div key={w} className="px-2 py-1">
-                  {w}
-                </div>
+            <div className="flex flex-wrap items-center gap-2 pb-2">
+              <span className="text-xs font-semibold text-muted-foreground">Status legend:</span>
+              {statusLegend.map((s) => (
+                <span key={s.key} className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${s.className}`}>
+                  {s.key}
+                </span>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
-              {gridDays.map((day) => {
-                const key = toDateKey(day);
-                const dayEvents = eventsByDate.get(key) || [];
-                const inMonth = day.getMonth() === monthCursor.getMonth();
-                const isToday = key === todayKey;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedDate((prev) => (prev === key ? "" : key))}
-                    className={`min-h-[110px] rounded-md border p-2 text-left transition ${
-                      inMonth ? "bg-background" : "bg-muted/40"
-                    } ${isToday ? "border-primary" : "border-border"} ${
-                      selectedDate === key ? "ring-2 ring-primary/40" : ""
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className={`text-xs ${inMonth ? "text-foreground" : "text-muted-foreground"}`}>{day.getDate()}</span>
-                      {dayEvents.length > 0 ? (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                          {dayEvents.length}
-                        </Badge>
-                      ) : null}
+            {viewMode !== "day" ? (
+              <div className="grid grid-cols-7 gap-2 text-xs font-medium text-muted-foreground">
+                {WEEK_DAYS.map((w) => (
+                  <div key={w} className="px-2 py-1">
+                    {w}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {viewMode === "month" ? (
+              <div className="grid grid-cols-7 gap-2">
+                {gridDays.map((day) => {
+                  const domKey = toDateKey(day);
+                  const zoneKey = toDateKeyInZone(day, timeZone);
+                  const dayEvents = eventsByDate.get(zoneKey) || [];
+                  const inMonth = day.getMonth() === monthCursor.getMonth();
+                  const isToday = domKey === todayKey;
+                  return (
+                    <button
+                      key={domKey}
+                      onClick={() => setSelectedDate((prev) => (prev === zoneKey ? "" : zoneKey))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/plain") || draggingCampaignId;
+                        handleReschedule(id, zoneKey);
+                      }}
+                      className={`min-h-[110px] rounded-md border p-2 text-left transition ${
+                        inMonth ? "bg-background" : "bg-muted/40"
+                      } ${isToday ? "border-primary" : "border-border"} ${
+                        selectedDate === zoneKey ? "ring-2 ring-primary/40" : ""
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className={`text-xs ${inMonth ? "text-foreground" : "text-muted-foreground"}`}>{day.getDate()}</span>
+                        {dayEvents.length > 0 ? (
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                            {dayEvents.length}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="space-y-1">
+                        {dayEvents.slice(0, 2).map((evt) => (
+                          <div
+                            key={evt.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("text/plain", evt.id);
+                              setDraggingCampaignId(evt.id);
+                            }}
+                            className="truncate rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
+                          >
+                            {evt.name}
+                          </div>
+                        ))}
+                        {dayEvents.length > 2 ? (
+                          <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 2} more</div>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {viewMode === "week" ? (
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((day) => {
+                  const zoneKey = toDateKeyInZone(day, timeZone);
+                  const dayEvents = eventsByDate.get(zoneKey) || [];
+                  return (
+                    <div
+                      key={zoneKey}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/plain") || draggingCampaignId;
+                        handleReschedule(id, zoneKey);
+                      }}
+                      className={`min-h-[180px] rounded-md border p-2 ${selectedDate === zoneKey ? "ring-2 ring-primary/40" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="mb-2 text-xs font-medium hover:underline"
+                        onClick={() => setSelectedDate((prev) => (prev === zoneKey ? "" : zoneKey))}
+                      >
+                        {day.toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}
+                      </button>
+                      <div className="space-y-1">
+                        {dayEvents.map((evt) => (
+                          <div
+                            key={evt.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("text/plain", evt.id);
+                              setDraggingCampaignId(evt.id);
+                            }}
+                            className="truncate rounded bg-primary/10 px-1.5 py-1 text-[11px] text-primary"
+                          >
+                            {evt.name}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      {dayEvents.slice(0, 2).map((evt) => (
-                        <div key={evt.id} className="truncate rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                          {evt.name}
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {viewMode === "day" ? (
+              <div className="space-y-2 rounded-md border p-3">
+                {(() => {
+                  const key = selectedDate || toDateKeyInZone(monthCursor, timeZone);
+                  const dayEvents = eventsByDate.get(key) || [];
+                  return dayEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No events for this day.</p>
+                  ) : (
+                    dayEvents.map((evt) => (
+                      <div key={evt.id} className="rounded-md border border-border p-2 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{evt.name}</p>
+                          <Badge variant={evt.status === "active" ? "success" : "secondary"}>{evt.status}</Badge>
                         </div>
-                      ))}
-                      {dayEvents.length > 2 ? (
-                        <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 2} more</div>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                        <p className="text-xs text-muted-foreground">
+                          {evt.when.toLocaleTimeString(undefined, { timeZone: resolvedTimeZone })}
+                        </p>
+                      </div>
+                    ))
+                  );
+                })()}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -390,7 +774,7 @@ export default function EmailCalendarPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {`Events on ${new Date(selectedDate).toLocaleDateString()}`}
+                {`Events on ${new Date(selectedDate).toLocaleDateString(undefined, { timeZone: resolvedTimeZone })}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -403,8 +787,31 @@ export default function EmailCalendarPage() {
                       <p className="truncate text-sm font-medium">{evt.name}</p>
                       <Badge variant={evt.status === "active" ? "success" : "secondary"}>{evt.status}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">{evt.when.toLocaleTimeString()}</p>
+                    <p className="text-xs text-muted-foreground">{evt.when.toLocaleTimeString(undefined, { timeZone: resolvedTimeZone })}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Audience: {evt.audience.toLocaleString()}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                        onClick={() => handleQuickAction(evt.id, "launch", evt.name)}
+                      >
+                        Launch
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                        onClick={() => handleQuickAction(evt.id, "pause", evt.name)}
+                      >
+                        Pause
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                        onClick={() => handleQuickAction(evt.id, "edit", evt.name)}
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

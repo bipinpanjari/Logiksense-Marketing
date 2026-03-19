@@ -1,13 +1,29 @@
 import { authedFetch } from "@/lib/api-client";
 
-export async function listCampaigns() {
-  const res = await authedFetch("/marketing-email/campaigns");
+export async function listCampaigns(filters?: { from?: string; to?: string; status?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.from) params.set("from", filters.from);
+  if (filters?.to) params.set("to", filters.to);
+  if (filters?.status) params.set("status", filters.status);
+  const query = params.toString();
+  const res = await authedFetch(`/marketing-email/campaigns${query ? `?${query}` : ""}`);
   return res.json();
 }
 
 export async function createCampaign(payload: { name: string; status?: string; audienceCount?: number; scheduledAt?: string }) {
   const res = await authedFetch("/marketing-email/campaigns", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function updateCampaign(
+  id: string,
+  payload: { name?: string; status?: string; audienceCount?: number; scheduledAt?: string | null }
+) {
+  const res = await authedFetch(`/marketing-email/campaigns/${id}`, {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
   return res.json();

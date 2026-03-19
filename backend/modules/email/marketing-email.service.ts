@@ -10,14 +10,34 @@ type SequenceStep = {
 
 @Injectable()
 export class MarketingEmailService {
-  async listCampaigns(workspaceId: string) {
+  async listCampaigns(
+    workspaceId: string,
+    filters?: { from?: string; to?: string; status?: string }
+  ) {
     const db = getDatabase();
+    const values: any[] = [workspaceId];
+    let idx = 2;
+    const clauses = [`workspace_id = $1`];
+
+    if (filters?.status?.trim()) {
+      clauses.push(`status = $${idx++}`);
+      values.push(filters.status.trim().toLowerCase());
+    }
+    if (filters?.from) {
+      clauses.push(`COALESCE(scheduled_at, launched_at, created_at) >= $${idx++}`);
+      values.push(new Date(filters.from));
+    }
+    if (filters?.to) {
+      clauses.push(`COALESCE(scheduled_at, launched_at, created_at) <= $${idx++}`);
+      values.push(new Date(filters.to));
+    }
+
     const result = await db.query(
       `SELECT id, name, status, audience_count, open_rate, click_rate, scheduled_at, launched_at, created_at, updated_at
        FROM email_campaigns
-       WHERE workspace_id = $1
-       ORDER BY created_at DESC`,
-      [workspaceId]
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY COALESCE(scheduled_at, launched_at, created_at) DESC`,
+      values
     );
     return result.rows;
   }
@@ -40,6 +60,55 @@ export class MarketingEmailService {
         payload.scheduledAt ? new Date(payload.scheduledAt) : null,
       ]
     );
+    return result.rows[0];
+  }
+
+  async updateCampaign(
+    workspaceId: string,
+    customerId: string,
+    campaignId: string,
+    payload: { name?: string; status?: string; audienceCount?: number; scheduledAt?: string | null }
+  ) {
+    const db = getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    if (typeof payload.name === 'string') {
+      fields.push(`name = $${idx++}`);
+      values.push(payload.name.trim());
+    }
+    if (typeof payload.status === 'string') {
+      fields.push(`status = $${idx++}`);
+      values.push(payload.status.trim().toLowerCase());
+    }
+    if (typeof payload.audienceCount === 'number') {
+      fields.push(`audience_count = $${idx++}`);
+      values.push(payload.audienceCount);
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'scheduledAt')) {
+      fields.push(`scheduled_at = $${idx++}`);
+      values.push(payload.scheduledAt ? new Date(payload.scheduledAt) : null);
+    }
+    if (fields.length === 0) {
+      throw new BadRequestException('No fields provided for update');
+    }
+
+    values.push(campaignId);
+    values.push(workspaceId);
+    values.push(customerId);
+
+    const result = await db.query(
+      `UPDATE email_campaigns
+       SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${idx++} AND workspace_id = $${idx++} AND customer_id = $${idx}
+       RETURNING id, name, status, audience_count, open_rate, click_rate, scheduled_at, launched_at, created_at, updated_at`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      throw new BadRequestException('Campaign not found');
+    }
     return result.rows[0];
   }
 

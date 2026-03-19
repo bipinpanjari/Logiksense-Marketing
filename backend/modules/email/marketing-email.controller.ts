@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Request, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, Request, UnauthorizedException, Param } from '@nestjs/common';
 import { RequestWithUser } from '../../shared/auth.middleware';
 import { MarketingEmailService } from './marketing-email.service';
 
@@ -7,10 +7,15 @@ export class MarketingEmailController {
   constructor(private readonly marketingEmailService: MarketingEmailService) {}
 
   @Get('campaigns')
-  async listCampaigns(@Request() req: RequestWithUser) {
+  async listCampaigns(
+    @Request() req: RequestWithUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string
+  ) {
     const workspaceId = req.user?.workspaceId;
     if (!workspaceId) throw new UnauthorizedException('Not authenticated');
-    return this.marketingEmailService.listCampaigns(workspaceId);
+    return this.marketingEmailService.listCampaigns(workspaceId, { from, to, status });
   }
 
   @Post('campaigns')
@@ -22,6 +27,18 @@ export class MarketingEmailController {
     const customerId = req.user?.userId;
     if (!workspaceId || !customerId) throw new UnauthorizedException('Not authenticated');
     return this.marketingEmailService.createCampaign(workspaceId, customerId, body);
+  }
+
+  @Patch('campaigns/:id')
+  async updateCampaign(
+    @Request() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() body: { name?: string; status?: string; audienceCount?: number; scheduledAt?: string | null }
+  ) {
+    const workspaceId = req.user?.workspaceId;
+    const customerId = req.user?.userId;
+    if (!workspaceId || !customerId) throw new UnauthorizedException('Not authenticated');
+    return this.marketingEmailService.updateCampaign(workspaceId, customerId, id, body);
   }
 
   @Get('calendar')
