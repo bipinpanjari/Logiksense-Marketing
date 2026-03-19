@@ -7,4 +7,3 @@ const LegacyOnboarding = dynamic(() => import("@/src/pages/Registration"), { ssr
 export default function OnboardingPage() {
   return <LegacyOnboarding />;
 }
-

@@ -3,6 +3,7 @@ export interface AuthUser {
   email: string;
   firstName?: string;
   lastName?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthWorkspace {

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCampaigns, updateCampaign } from "@/lib/marketing-email";
+import { getTimeZoneOptions } from "@/lib/timezones";
+import { TimezoneSelect } from "@/components/ui/timezone-select";
 
 type CampaignEvent = {
   id: string;
@@ -16,69 +18,6 @@ type CampaignEvent = {
 };
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const POPULAR_TIMEZONES = [
-  "UTC",
-  "Europe/London",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Europe/Madrid",
-  "Europe/Rome",
-  "Europe/Amsterdam",
-  "Europe/Stockholm",
-  "Europe/Warsaw",
-  "Europe/Athens",
-  "Europe/Istanbul",
-  "Europe/Moscow",
-  "Africa/Cairo",
-  "Africa/Nairobi",
-  "Africa/Johannesburg",
-  "Asia/Dubai",
-  "Asia/Riyadh",
-  "Asia/Tehran",
-  "Asia/Karachi",
-  "Asia/Kolkata",
-  "Asia/Dhaka",
-  "Asia/Bangkok",
-  "Asia/Jakarta",
-  "Asia/Ho_Chi_Minh",
-  "Asia/Hong_Kong",
-  "Asia/Shanghai",
-  "Asia/Taipei",
-  "Asia/Seoul",
-  "Asia/Tokyo",
-  "Asia/Singapore",
-  "Australia/Perth",
-  "Australia/Adelaide",
-  "Australia/Sydney",
-  "Pacific/Auckland",
-  "Pacific/Honolulu",
-  "America/Anchorage",
-  "America/Los_Angeles",
-  "America/Denver",
-  "America/Chicago",
-  "America/New_York",
-  "America/Toronto",
-  "America/Mexico_City",
-  "America/Bogota",
-  "America/Lima",
-  "America/Sao_Paulo",
-  "America/Argentina/Buenos_Aires",
-];
-
-function getTimeZoneOptions(): string[] {
-  try {
-    const supportedValuesOf = (Intl as any)?.supportedValuesOf;
-    if (typeof supportedValuesOf === "function") {
-      const all = supportedValuesOf("timeZone") as string[];
-      const withUtc = all.includes("UTC") ? all : ["UTC", ...all];
-      const popular = POPULAR_TIMEZONES.filter((tz) => withUtc.includes(tz));
-      const rest = withUtc.filter((tz) => !popular.includes(tz));
-      return [...popular, ...rest];
-    }
-  } catch {
-  }
-  return [...POPULAR_TIMEZONES];
-}
 const MONTHS = [
   "January",
   "February",
@@ -138,8 +77,6 @@ export default function EmailCalendarPage() {
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
   const [timeZone, setTimeZone] = useState("UTC");
-  const [timeZoneOpen, setTimeZoneOpen] = useState(false);
-  const [timeZoneQuery, setTimeZoneQuery] = useState("UTC");
   const [draggingCampaignId, setDraggingCampaignId] = useState<string>("");
   const [events, setEvents] = useState<CampaignEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -150,7 +87,6 @@ export default function EmailCalendarPage() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
   const pickerRootRef = useRef<HTMLDivElement | null>(null);
-  const timeZoneRootRef = useRef<HTMLDivElement | null>(null);
   const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
 
   const resolvedTimeZone = useMemo(() => {
@@ -158,11 +94,6 @@ export default function EmailCalendarPage() {
     return "UTC";
   }, [timeZone, timeZoneOptions]);
 
-  const filteredTimeZones = useMemo(() => {
-    const q = timeZoneQuery.trim().toLowerCase();
-    if (!q) return timeZoneOptions.slice(0, 240);
-    return timeZoneOptions.filter((tz) => tz.toLowerCase().includes(q)).slice(0, 200);
-  }, [timeZoneOptions, timeZoneQuery]);
 
   const visibleRange = useMemo(() => {
     if (viewMode === "day") {
@@ -245,51 +176,6 @@ export default function EmailCalendarPage() {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [pickerOpen]);
-
-  useEffect(() => {
-    if (!timeZoneOpen) return;
-
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
-      const root = timeZoneRootRef.current;
-      if (!root) return;
-      const target = event.target as Node | null;
-      if (target && root.contains(target)) return;
-      setTimeZoneOpen(false);
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setTimeZoneOpen(false);
-        return;
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-
-      if (event.key === "Backspace") {
-        setTimeZoneQuery((prev) => prev.slice(0, -1));
-        return;
-      }
-
-      if (event.key === " ") {
-        event.preventDefault();
-        setTimeZoneQuery((prev) => `${prev} `);
-        return;
-      }
-
-      if (event.key.length === 1) {
-        setTimeZoneQuery((prev) => `${prev}${event.key}`);
-      }
-    };
-
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown, { passive: true });
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [timeZoneOpen]);
 
   const eventsByDate = useMemo(() => {
     const from = rangeFrom ? parseDateInput(rangeFrom) : null;
@@ -535,62 +421,8 @@ export default function EmailCalendarPage() {
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative mr-2" ref={timeZoneRootRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTimeZoneQuery("");
-                    setTimeZoneOpen((v) => !v);
-                  }}
-                  className="flex h-9 w-[240px] items-center justify-between rounded-md border border-input bg-background px-2 text-xs hover:bg-muted"
-                  aria-haspopup="listbox"
-                  aria-expanded={timeZoneOpen}
-                >
-                  <span className="truncate">{resolvedTimeZone}</span>
-                  <span className="text-[10px] text-muted-foreground">▼</span>
-                </button>
-
-                {timeZoneOpen ? (
-                  <div className="absolute right-0 top-full z-10 mt-2 w-[360px] overflow-hidden rounded-lg border border-border bg-card shadow-md">
-                    <div className="flex items-center justify-between border-b border-border px-2 py-2 text-[11px] text-muted-foreground">
-                      <span className="truncate">
-                        {timeZoneQuery ? `Filter: ${timeZoneQuery}` : "Type to filter timezones"}
-                      </span>
-                      {timeZoneQuery ? (
-                        <button
-                          type="button"
-                          onClick={() => setTimeZoneQuery("")}
-                          className="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-muted"
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="max-h-[320px] overflow-auto p-1" role="listbox" aria-label="Timezone options">
-                      {filteredTimeZones.length === 0 ? (
-                        <div className="px-2 py-2 text-xs text-muted-foreground">No matches</div>
-                      ) : (
-                        filteredTimeZones.map((tz) => (
-                          <button
-                            key={tz}
-                            type="button"
-                            onClick={() => {
-                              setTimeZone(tz);
-                              setTimeZoneQuery(tz);
-                              setTimeZoneOpen(false);
-                            }}
-                            className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-xs hover:bg-muted ${
-                              tz === resolvedTimeZone ? "bg-muted" : ""
-                            }`}
-                          >
-                            <span className="truncate">{tz}</span>
-                            {tz === resolvedTimeZone ? <span className="text-[10px] text-muted-foreground">selected</span> : null}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ) : null}
+              <div className="mr-2">
+                <TimezoneSelect value={resolvedTimeZone} onChange={setTimeZone} />
               </div>
               <div className="mr-2 flex items-center gap-1 rounded-md border border-border p-1">
                 {(["month", "week", "day"] as const).map((v) => (

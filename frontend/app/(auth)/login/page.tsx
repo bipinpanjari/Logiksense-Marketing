@@ -34,7 +34,7 @@ export default function LoginPage() {
         user: data.user,
         workspace: data.workspace,
       });
-      router.replace("/dashboard");
+      router.replace(data?.user?.onboardingCompleted ? "/dashboard" : "/onboarding");
     } catch (err: any) {
       setError(err?.message || "Login failed");
     } finally {

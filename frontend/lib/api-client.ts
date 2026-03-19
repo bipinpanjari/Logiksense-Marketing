@@ -46,8 +46,20 @@ export async function authedFetch(path: string, init?: RequestInit) {
   });
 
   if (!response.ok) {
-    const message = await response.text().catch(() => "");
-    throw new Error(message || `Request failed (${response.status})`);
+    const raw = await response.text().catch(() => "");
+    let message = raw || `Request failed (${response.status})`;
+    try {
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === "object") {
+        message = (parsed.message as string) || (parsed.error as string) || message;
+      }
+    } catch {
+      // ignore parse errors; keep raw text
+    }
+    if (response.status === 401) {
+      clearSession();
+    }
+    throw new Error(message);
   }
 
   return response;

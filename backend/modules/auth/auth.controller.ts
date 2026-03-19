@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Request, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, Request, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegistrationService } from './registration.service';
 import { EmailValidationService } from './email-validation.service';
@@ -10,7 +10,9 @@ import {
   RetryValidationDto,
   CompleteRegistrationDto,
   GetDNSGuideDto,
+  CompleteOnboardingDto,
 } from './registration.dto';
+import { UpdateProfileDto, UpdateWorkspaceSettingsDto } from './account.dto';
 
 @Controller('api/auth')
 export class AuthController {
@@ -41,10 +43,52 @@ export class AuthController {
     if (!req.user) {
       throw new UnauthorizedException('Not authenticated');
     }
+    const user = await this.authService.validateUser(req.user.userId);
+    const workspace = await this.authService.getWorkspaceById(req.user.workspaceId);
     return {
-      user: await this.authService.validateUser(req.user.userId),
-      workspace: req.user.workspaceId,
+      user,
+      workspace,
     };
+  }
+
+  @Post('onboarding/complete')
+  async completeOnboarding(@Request() req: any, @Body() payload: CompleteOnboardingDto) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.completeOnboarding(req.user.userId, req.user.workspaceId, payload);
+  }
+
+  @Get('profile')
+  async getProfile(@Request() req: any) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.getProfile(req.user.userId);
+  }
+
+  @Put('profile')
+  async updateProfile(@Request() req: any, @Body() payload: UpdateProfileDto) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.updateProfile(req.user.userId, payload);
+  }
+
+  @Get('settings')
+  async getSettings(@Request() req: any) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.getWorkspaceSettings(req.user.userId, req.user.workspaceId);
+  }
+
+  @Put('settings')
+  async updateSettings(@Request() req: any, @Body() payload: UpdateWorkspaceSettingsDto) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.updateWorkspaceSettings(req.user.userId, req.user.workspaceId, payload);
   }
 
   // ==================== MULTI-STEP REGISTRATION ====================

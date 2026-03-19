@@ -51,8 +51,13 @@ export class AuthMiddleware implements NestMiddleware {
   private isPublicRoute(path: string): boolean {
     if (path === '/favicon.ico') return true;
 
-    // All auth routes are public except `me` (requires token)
-    if (path.startsWith('/api/auth/') && !path.startsWith('/api/auth/me')) {
+    if (
+      path.startsWith('/api/auth/') &&
+      !path.startsWith('/api/auth/me') &&
+      !path.startsWith('/api/auth/onboarding/complete') &&
+      !path.startsWith('/api/auth/profile') &&
+      !path.startsWith('/api/auth/settings')
+    ) {
       return true;
     }
 

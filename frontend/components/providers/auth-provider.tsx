@@ -26,6 +26,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const PUBLIC_ROUTES = new Set(["/login", "/register"]);
+const ONBOARDING_ROUTE = "/onboarding";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const data = await res.json();
         const resolvedUser: AuthUser =
-          data?.user || getStoredUser() || { id: "unknown", email: "unknown@local.dev", firstName: "User" };
+          data?.user || getStoredUser() || { id: "unknown", email: "unknown@local.dev", firstName: "User", onboardingCompleted: false };
         const resolvedWorkspace: AuthWorkspace | null =
           data?.workspace || getStoredWorkspace() || null;
 
@@ -62,7 +63,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(resolvedUser);
         setWorkspace(resolvedWorkspace);
         setIsAuthenticated(true);
-        if (PUBLIC_ROUTES.has(pathname)) router.replace("/dashboard");
+        const onboardingCompleted = Boolean(resolvedUser?.onboardingCompleted);
+        if (!onboardingCompleted && pathname !== ONBOARDING_ROUTE) {
+          router.replace(ONBOARDING_ROUTE);
+          return;
+        }
+        if (onboardingCompleted && pathname === ONBOARDING_ROUTE) {
+          router.replace("/dashboard");
+          return;
+        }
+        if (PUBLIC_ROUTES.has(pathname)) router.replace(onboardingCompleted ? "/dashboard" : ONBOARDING_ROUTE);
       } catch {
         clearSession();
         setUser(null);
