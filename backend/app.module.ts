@@ -11,6 +11,7 @@ import { WorkspaceService } from './modules/workspaces/workspace.service';
 import { WorkspaceController } from './modules/workspaces/workspace.controller';
 import { LeadService } from './modules/leads/lead.service';
 import { LeadImportService } from './modules/leads/lead-import.service';
+import { LeadExtractionService } from './modules/leads/lead-extraction.service';
 import { LeadScoringService } from './modules/leads/lead-scoring.service';
 import { ContactSegmentationService } from './modules/leads/contact-segmentation.service';
 import { EmailAnalyticsService } from './modules/leads/email-analytics.service';
@@ -56,6 +57,7 @@ import { MarketingEmailService } from './modules/email/marketing-email.service';
     EmailValidationService,
     WorkspaceService,
     LeadService,
+    LeadExtractionService,
     LeadImportService,
     LeadScoringService,
     ContactSegmentationService,

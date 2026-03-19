@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { getDatabase } from '../../shared/database';
 import { v4 as uuid } from 'uuid';
 
@@ -33,6 +33,14 @@ export interface PaginationParams {
 
 @Injectable()
 export class LeadService {
+  private normalizeEmail(email: string | undefined): string {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private validateEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
   async createLead(
     workspaceId: string,
     customerId: string,
@@ -40,6 +48,14 @@ export class LeadService {
   ) {
     const db = getDatabase();
     const leadId = uuid();
+    const email = this.normalizeEmail(createLeadDto.email);
+
+    if (!email || !this.validateEmail(email)) {
+      throw new BadRequestException('Valid email is required');
+    }
+    if (!createLeadDto.firstName?.trim() && !createLeadDto.lastName?.trim()) {
+      throw new BadRequestException('At least firstName or lastName is required');
+    }
 
     try {
       const result = await db.query(
@@ -49,9 +65,9 @@ export class LeadService {
         [
           leadId,
           workspaceId,
-          createLeadDto.firstName,
-          createLeadDto.lastName,
-          createLeadDto.email,
+          createLeadDto.firstName?.trim() || null,
+          createLeadDto.lastName?.trim() || null,
+          email,
           createLeadDto.phone || null,
           createLeadDto.company || null,
           createLeadDto.tags || [],
@@ -68,7 +84,10 @@ export class LeadService {
       );
 
       return this.formatLead(result.rows[0]);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        throw new ConflictException('Lead already exists with this email in this workspace');
+      }
       console.error('Create lead error:', error);
       throw error;
     }
@@ -201,8 +220,12 @@ export class LeadService {
       }
 
       if (updateLeadDto.email) {
+        const normalized = this.normalizeEmail(updateLeadDto.email);
+        if (!this.validateEmail(normalized)) {
+          throw new BadRequestException('Invalid email format');
+        }
         updateFields.push(`email = $${paramIndex}`);
-        updateValues.push(updateLeadDto.email);
+        updateValues.push(normalized);
         paramIndex++;
       }
 
@@ -251,7 +274,10 @@ export class LeadService {
       );
 
       return this.formatLead(result.rows[0]);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        throw new ConflictException('Lead already exists with this email in this workspace');
+      }
       console.error('Update lead error:', error);
       throw error;
     }

@@ -3,18 +3,64 @@ import { getDatabase } from '../../shared/database';
 import { v4 as uuid } from 'uuid';
 import * as XLSX from 'xlsx';
 import { LeadService, CreateLeadDto } from './lead.service';
+import { LeadExtractionService, ImportMapping } from './lead-extraction.service';
 
 export interface ImportResult {
   totalRows: number;
   successCount: number;
+  updateCount?: number;
   errorCount: number;
   errors: Array<{ row: number; email: string; error: string }>;
   leads: any[];
 }
 
+export interface ImportPreviewResult {
+  totalRows: number;
+  detectedColumns: string[];
+  suggestedMapping: ImportMapping;
+  preview: Array<{
+    row: number;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    valid: boolean;
+    issues: string[];
+  }>;
+}
+
 @Injectable()
 export class LeadImportService {
-  constructor(private leadService: LeadService) {}
+  constructor(
+    private leadService: LeadService,
+    private leadExtractionService: LeadExtractionService
+  ) {}
+
+  async previewImport(file: Buffer): Promise<ImportPreviewResult> {
+    const rows = this.leadExtractionService.parseRows(file);
+    const detectedColumns = this.leadExtractionService.getDetectedColumns(rows);
+    const suggestedMapping = this.leadExtractionService.inferMapping(detectedColumns);
+    const preview = this.leadExtractionService.getPreview(rows, suggestedMapping, 30);
+
+    return {
+      totalRows: rows.length,
+      detectedColumns,
+      suggestedMapping,
+      preview,
+    };
+  }
+
+  async confirmImport(
+    file: Buffer,
+    workspaceId: string,
+    customerId: string,
+    mapping: ImportMapping,
+    dedupeStrategy: 'skip' | 'update' = 'skip'
+  ): Promise<ImportResult> {
+    const rows = this.leadExtractionService.parseRows(file);
+    return this.processRows(rows, workspaceId, customerId, mapping, dedupeStrategy);
+  }
 
   async importFromCSV(
     file: Buffer,
@@ -26,8 +72,9 @@ export class LeadImportService {
       const workbook = XLSX.read(file, { type: 'buffer' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet);
-
-      return this.processRows(rows, workspaceId, customerId);
+      const detectedColumns = this.leadExtractionService.getDetectedColumns(rows);
+      const suggestedMapping = this.leadExtractionService.inferMapping(detectedColumns);
+      return this.processRows(rows, workspaceId, customerId, suggestedMapping, 'skip');
     } catch (error) {
       console.error('CSV import error:', error);
       throw new BadRequestException('Invalid CSV file format');
@@ -44,8 +91,9 @@ export class LeadImportService {
       const workbook = XLSX.read(file, { type: 'buffer' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet);
-
-      return this.processRows(rows, workspaceId, customerId);
+      const detectedColumns = this.leadExtractionService.getDetectedColumns(rows);
+      const suggestedMapping = this.leadExtractionService.inferMapping(detectedColumns);
+      return this.processRows(rows, workspaceId, customerId, suggestedMapping, 'skip');
     } catch (error) {
       console.error('Excel import error:', error);
       throw new BadRequestException('Invalid Excel file format');
@@ -55,11 +103,14 @@ export class LeadImportService {
   private async processRows(
     rows: any[],
     workspaceId: string,
-    customerId: string
+    customerId: string,
+    mapping: ImportMapping,
+    dedupeStrategy: 'skip' | 'update'
   ): Promise<ImportResult> {
     const result: ImportResult = {
       totalRows: rows.length,
       successCount: 0,
+      updateCount: 0,
       errorCount: 0,
       errors: [],
       leads: [],
@@ -71,15 +122,15 @@ export class LeadImportService {
       const row = rows[i];
 
       try {
-        // Auto-detect columns (case-insensitive)
-        const firstName = this.getColumnValue(row, ['first_name', 'firstname', 'first name', 'fname']);
-        const lastName = this.getColumnValue(row, ['last_name', 'lastname', 'last name', 'lname']);
-        const email = this.getColumnValue(row, ['email', 'e-mail', 'email_address']);
-        const phone = this.getColumnValue(row, ['phone', 'phone_number', 'telephone']);
-        const company = this.getColumnValue(row, ['company', 'company_name', 'organisation']);
+        const mapped = this.leadExtractionService.mapRow(row, mapping);
+        const firstName = mapped.firstName;
+        const lastName = mapped.lastName;
+        const email = mapped.email || '';
+        const phone = mapped.phone;
+        const company = mapped.company;
 
         // Validation
-        if (!email || !this.isValidEmail(email)) {
+        if (!email || !this.leadExtractionService.isValidEmail(email)) {
           result.errorCount++;
           result.errors.push({
             row: i + 2,
@@ -101,11 +152,24 @@ export class LeadImportService {
 
         // Check for duplicates in this workspace
         const existing = await db.query(
-          'SELECT id FROM leads WHERE workspace_id = $1 AND email = $2',
+          'SELECT id FROM leads WHERE workspace_id = $1 AND lower(email) = lower($2)',
           [workspaceId, email]
         );
 
         if (existing.rows.length > 0) {
+          if (dedupeStrategy === 'update') {
+            const updated = await this.leadService.updateLead(workspaceId, existing.rows[0].id, {
+              firstName: firstName || undefined,
+              lastName: lastName || undefined,
+              phone: phone || undefined,
+              company: company || undefined,
+              customFields: this.leadExtractionService.extractCustomFields(row, mapping),
+            });
+            result.updateCount = (result.updateCount || 0) + 1;
+            result.leads.push(updated);
+            continue;
+          }
+
           result.errorCount++;
           result.errors.push({
             row: i + 2,
@@ -123,7 +187,7 @@ export class LeadImportService {
           phone: phone || undefined,
           company: company || undefined,
           tags: [],
-          customFields: this.extractCustomFields(row),
+          customFields: this.leadExtractionService.extractCustomFields(row, mapping),
         };
 
         const lead = await this.leadService.createLead(
@@ -145,49 +209,26 @@ export class LeadImportService {
       }
     }
 
+    await db.query(
+      `INSERT INTO activity_logs (id, workspace_id, entity_type, action, details, performed_by)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        uuid(),
+        workspaceId,
+        'lead_import',
+        'lead_imported',
+        JSON.stringify({
+          totalRows: result.totalRows,
+          successCount: result.successCount,
+          updateCount: result.updateCount || 0,
+          errorCount: result.errorCount,
+          dedupeStrategy,
+        }),
+        customerId,
+      ]
+    );
+
     return result;
-  }
-
-  private getColumnValue(row: any, possibleNames: string[]): string | undefined {
-    const lowerRow = Object.keys(row).reduce((acc, key) => {
-      acc[key.toLowerCase()] = row[key];
-      return acc;
-    }, {} as any);
-
-    for (const name of possibleNames) {
-      const value = lowerRow[name.toLowerCase()];
-      if (value && String(value).trim()) {
-        return String(value).trim();
-      }
-    }
-
-    return undefined;
-  }
-
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  private extractCustomFields(row: any): Record<string, any> {
-    const standardFields = [
-      'first_name', 'firstname', 'first name', 'fname',
-      'last_name', 'lastname', 'last name', 'lname',
-      'email', 'e-mail', 'email_address',
-      'phone', 'phone_number', 'telephone',
-      'company', 'company_name', 'organisation',
-    ];
-
-    const customFields: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(row)) {
-      const lowerKey = key.toLowerCase();
-      if (!standardFields.includes(lowerKey) && value) {
-        customFields[key] = value;
-      }
-    }
-
-    return customFields;
   }
 
   async getImportHistory(workspaceId: string) {

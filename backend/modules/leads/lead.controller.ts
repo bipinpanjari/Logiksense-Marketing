@@ -11,6 +11,7 @@ import {
   UploadedFile,
   Request,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LeadService, CreateLeadDto, UpdateLeadDto, PaginationParams } from './lead.service';
@@ -29,14 +30,19 @@ export class LeadController {
     private emailAnalyticsService: EmailAnalyticsService
   ) {}
 
+  private requireAuth(req: any) {
+    if (!req?.user) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return req.user;
+  }
+
   // ===== LEAD CRUD =====
 
   @Post()
   async createLead(@Body() createLeadDto: CreateLeadDto, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.createLead(req.user.workspaceId, req.user.userId, createLeadDto);
+    const user = this.requireAuth(req);
+    return this.leadService.createLead(user.workspaceId, user.userId, createLeadDto);
   }
 
   @Get()
@@ -48,9 +54,7 @@ export class LeadController {
     @Query('company') company?: string,
     @Request() req?: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
 
     const params: PaginationParams = {
       page: page ? parseInt(page) : 1,
@@ -60,23 +64,19 @@ export class LeadController {
       company,
     };
 
-    return this.leadService.getLeads(req.user.workspaceId, params);
+    return this.leadService.getLeads(user.workspaceId, params);
   }
 
   @Get('stats')
   async getLeadStats(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.getLeadStats(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.leadService.getLeadStats(user.workspaceId);
   }
 
   @Get(':id')
   async getLead(@Param('id') leadId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.getLead(req.user.workspaceId, leadId);
+    const user = this.requireAuth(req);
+    return this.leadService.getLead(user.workspaceId, leadId);
   }
 
   @Put(':id')
@@ -85,28 +85,22 @@ export class LeadController {
     @Body() updateLeadDto: UpdateLeadDto,
     @Request() req: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.updateLead(req.user.workspaceId, leadId, updateLeadDto);
+    const user = this.requireAuth(req);
+    return this.leadService.updateLead(user.workspaceId, leadId, updateLeadDto);
   }
 
   @Delete(':id')
   async deleteLead(@Param('id') leadId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.deleteLead(req.user.workspaceId, leadId);
+    const user = this.requireAuth(req);
+    return this.leadService.deleteLead(user.workspaceId, leadId);
   }
 
   // ===== BULK OPERATIONS =====
 
   @Post('bulk/delete')
   async bulkDeleteLeads(@Body('leadIds') leadIds: string[], @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadService.bulkDeleteLeads(req.user.workspaceId, leadIds);
+    const user = this.requireAuth(req);
+    return this.leadService.bulkDeleteLeads(user.workspaceId, leadIds);
   }
 
   @Put('bulk/update')
@@ -114,11 +108,9 @@ export class LeadController {
     @Body() body: { leadIds: string[]; updates: UpdateLeadDto },
     @Request() req: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     return this.leadService.bulkUpdateLeads(
-      req.user.workspaceId,
+      user.workspaceId,
       body.leadIds,
       body.updates
     );
@@ -133,9 +125,7 @@ export class LeadController {
     @Query('type') type: 'csv' | 'excel' = 'csv',
     @Request() req: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
 
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -152,24 +142,67 @@ export class LeadController {
     if (isCSV) {
       return this.leadImportService.importFromCSV(
         file.buffer,
-        req.user.workspaceId,
-        req.user.userId
+        user.workspaceId,
+        user.userId
       );
     } else {
       return this.leadImportService.importFromExcel(
         file.buffer,
-        req.user.workspaceId,
-        req.user.userId
+        user.workspaceId,
+        user.userId
       );
     }
   }
 
+  @Post('import/preview')
+  @UseInterceptors(FileInterceptor('file'))
+  async previewImportLeads(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any
+  ) {
+    this.requireAuth(req);
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    return this.leadImportService.previewImport(file.buffer);
+  }
+
+  @Post('import/confirm')
+  @UseInterceptors(FileInterceptor('file'))
+  async confirmImportLeads(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('mapping') mappingRaw: string,
+    @Body('dedupeStrategy') dedupeStrategyRaw: 'skip' | 'update' | undefined,
+    @Request() req: any
+  ) {
+    const user = this.requireAuth(req);
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    let mapping: any = {};
+    if (mappingRaw) {
+      try {
+        mapping = JSON.parse(mappingRaw);
+      } catch {
+        throw new BadRequestException('Invalid mapping payload');
+      }
+    }
+
+    const dedupeStrategy = dedupeStrategyRaw === 'update' ? 'update' : 'skip';
+    return this.leadImportService.confirmImport(
+      file.buffer,
+      user.workspaceId,
+      user.userId,
+      mapping,
+      dedupeStrategy
+    );
+  }
+
   @Get('import/history')
   async getImportHistory(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.leadImportService.getImportHistory(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.leadImportService.getImportHistory(user.workspaceId);
   }
 
   // ===== LEAD SCORING =====
@@ -186,17 +219,13 @@ export class LeadController {
 
   @Get('score/:id')
   async getLeadScore(@Param('id') leadId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.leadScoringService.calculateLeadScore(leadId, this.defaultScoringCriteria);
   }
 
   @Post('score/batch')
   async batchScoreLeads(@Body() body: { leadIds?: string[] }, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     if (body.leadIds && body.leadIds.length > 0) {
       // Score specific leads
       const results = [];
@@ -210,7 +239,7 @@ export class LeadController {
       return results;
     } else {
       // Score all leads in workspace
-      return this.leadScoringService.scoreAllLeads(req.user.workspaceId);
+      return this.leadScoringService.scoreAllLeads(user.workspaceId);
     }
   }
 
@@ -220,12 +249,10 @@ export class LeadController {
     @Query('maxScore') maxScore?: string,
     @Request() req?: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     const min = parseInt(minScore);
     const max = maxScore ? parseInt(maxScore) : 100;
-    return this.leadScoringService.getLeadsByScoreThreshold(req.user.workspaceId, min, max);
+    return this.leadScoringService.getLeadsByScoreThreshold(user.workspaceId, min, max);
   }
 
   // ===== SEGMENTATION =====
@@ -239,11 +266,9 @@ export class LeadController {
     },
     @Request() req: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     return this.segmentationService.createSegment(
-      req.user.workspaceId,
+      user.workspaceId,
       body.name,
       body.description,
       body.criteria
@@ -252,17 +277,13 @@ export class LeadController {
 
   @Get('segments')
   async getSegments(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.segmentationService.getSegments(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.segmentationService.getSegments(user.workspaceId);
   }
 
   @Get('segments/:segmentId')
   async getSegmentDetails(@Param('segmentId') segmentId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.segmentationService.getSegmentDetails(segmentId);
   }
 
@@ -273,9 +294,7 @@ export class LeadController {
     @Query('limit') limit?: string,
     @Request() req?: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.segmentationService.getSegmentMembers(
       segmentId,
       offset ? parseInt(offset) : 0,
@@ -289,98 +308,76 @@ export class LeadController {
     @Body('criteria') criteria: SegmentCriteria,
     @Request() req: any
   ) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.segmentationService.updateSegmentCriteria(segmentId, criteria);
   }
 
   @Post('segments/:segmentId/refresh')
   async refreshSegmentMembers(@Param('segmentId') segmentId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     const memberCount = await this.segmentationService.refreshSegmentMembers(segmentId);
     return { segmentId, memberCount, message: 'Segment refreshed' };
   }
 
   @Delete('segments/:segmentId')
   async deleteSegment(@Param('segmentId') segmentId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     await this.segmentationService.deleteSegment(segmentId);
     return { message: 'Segment deleted' };
   }
 
   @Get('segments/built-in/high-value')
   async getHighValueLeads(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.segmentationService.getHighValueSegment(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.segmentationService.getHighValueSegment(user.workspaceId);
   }
 
   @Get('segments/built-in/at-risk')
   async getAtRiskLeads(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.segmentationService.getAtRiskSegment(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.segmentationService.getAtRiskSegment(user.workspaceId);
   }
 
   // ===== EMAIL ANALYTICS =====
 
   @Get(':id/email-analytics')
   async getLeadEmailAnalytics(@Param('id') leadId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.emailAnalyticsService.getLeadAnalytics(leadId);
   }
 
   @Get('analytics/campaigns/:campaignId')
   async getCampaignAnalytics(@Param('campaignId') campaignId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.emailAnalyticsService.getCampaignAnalytics(campaignId);
   }
 
   @Get('analytics/workspace/summary')
   async getWorkspaceAnalyticsSummary(@Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
-    return this.emailAnalyticsService.getWorkspaceAnalyticsSummary(req.user.workspaceId);
+    const user = this.requireAuth(req);
+    return this.emailAnalyticsService.getWorkspaceAnalyticsSummary(user.workspaceId);
   }
 
   @Get('analytics/campaigns/top')
   async getTopCampaigns(@Query('limit') limit?: string, @Request() req?: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     return this.emailAnalyticsService.getTopCampaigns(
-      req.user.workspaceId,
+      user.workspaceId,
       limit ? parseInt(limit) : 10
     );
   }
 
   @Get(':id/engagement-timeline')
   async getEngagementTimeline(@Param('id') leadId: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    this.requireAuth(req);
     return this.emailAnalyticsService.getLeadEngagementTimeline(leadId);
   }
 
   @Get('analytics/most-engaged')
   async getMostEngagedLeads(@Query('limit') limit?: string, @Request() req?: any) {
-    if (!req.user) {
-      throw new Error('Unauthorized');
-    }
+    const user = this.requireAuth(req);
     return this.emailAnalyticsService.getMostEngagedLeads(
-      req.user.workspaceId,
+      user.workspaceId,
       limit ? parseInt(limit) : 20
     );
   }
