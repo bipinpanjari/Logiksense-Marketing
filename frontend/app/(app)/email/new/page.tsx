@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { createSequence } from "@/lib/marketing-email";
 
 interface Step {
   id: number;
@@ -13,9 +15,12 @@ interface Step {
 }
 
 export default function NewSequencePage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState<Step[]>([{ id: 1, name: "Step 1", delayHours: 0, subject: "" }]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
   function addStep() {
     setSteps((prev) => [
@@ -26,6 +31,34 @@ export default function NewSequencePage() {
 
   function updateStep(id: number, field: keyof Step, value: string | number) {
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, [field]: value } : step)));
+  }
+
+  async function onCreateSequence() {
+    if (!name.trim()) {
+      setMessage("Sequence name is required");
+      return;
+    }
+    setSaving(true);
+    setMessage("");
+    try {
+      await createSequence({
+        name: name.trim(),
+        description: description.trim(),
+        status: "draft",
+        steps: steps.map((s) => ({
+          id: s.id,
+          name: s.name,
+          delayHours: Number(s.delayHours || 0),
+          subject: s.subject,
+        })),
+      });
+      setMessage("Sequence created");
+      router.push("/email/sequences");
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to create sequence");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -76,8 +109,11 @@ export default function NewSequencePage() {
             <Button variant="outline" onClick={addStep}>
               Add Step
             </Button>
-            <Button>Create Sequence</Button>
+            <Button onClick={onCreateSequence} disabled={saving}>
+              {saving ? "Creating..." : "Create Sequence"}
+            </Button>
           </div>
+          {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         </CardContent>
       </Card>
     </div>

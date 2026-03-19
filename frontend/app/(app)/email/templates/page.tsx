@@ -1,20 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
-const library = [
-  { id: "t1", name: "Cold Intro", subject: "Quick question about {{companyName}}" },
-  { id: "t2", name: "Follow Up 1", subject: "Should I close your file?" },
-  { id: "t3", name: "Meeting Confirm", subject: "Confirming our call for {{date}}" },
-];
+import { createTemplate, listTemplates } from "@/lib/marketing-email";
 
 export default function EmailTemplatesPage() {
+  const [library, setLibrary] = useState<Array<{ id: string; name: string; subject: string; body_html?: string }>>([]);
   const [name, setName] = useState("Cold Intro");
   const [subject, setSubject] = useState("Quick question about {{companyName}}");
   const [body, setBody] = useState("Hi {{firstName}},\n\nI noticed {{companyName}} is scaling {{department}}...");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function loadTemplates() {
+    setLoading(true);
+    setMessage("");
+    try {
+      const data = await listTemplates();
+      const normalized = (Array.isArray(data) ? data : []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        subject: t.subject,
+        body_html: t.body_html,
+      }));
+      setLibrary(normalized);
+      if (normalized.length > 0) {
+        setName(normalized[0].name);
+        setSubject(normalized[0].subject);
+        setBody(normalized[0].body_html || "");
+      }
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to load templates");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  async function onSaveTemplate() {
+    setSaving(true);
+    setMessage("");
+    try {
+      await createTemplate({ name, subject, bodyHtml: body });
+      setMessage("Template saved");
+      await loadTemplates();
+    } catch (e: any) {
+      setMessage(e?.message || "Failed to save template");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -29,6 +70,7 @@ export default function EmailTemplatesPage() {
             <CardTitle className="text-base">Template Library</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
+            {loading ? <p className="text-sm text-muted-foreground">Loading templates...</p> : null}
             {library.map((item) => (
               <button
                 key={item.id}
@@ -36,6 +78,7 @@ export default function EmailTemplatesPage() {
                 onClick={() => {
                   setName(item.name);
                   setSubject(item.subject);
+                  setBody(item.body_html || "");
                 }}
               >
                 <p className="font-medium">{item.name}</p>
@@ -67,9 +110,12 @@ export default function EmailTemplatesPage() {
               />
             </div>
             <div className="flex gap-3">
-              <Button>Save Template</Button>
+              <Button onClick={onSaveTemplate} disabled={saving}>
+                {saving ? "Saving..." : "Save Template"}
+              </Button>
               <Button variant="outline">Preview</Button>
             </div>
+            {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
           </CardContent>
         </Card>
       </div>

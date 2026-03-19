@@ -1,17 +1,33 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const sequences = [
-  { id: "s1", name: "Founder Outreach 4-Step", status: "active", steps: 4, activeLeads: 183 },
-  { id: "s2", name: "Reactivation Drip", status: "draft", steps: 3, activeLeads: 0 },
-  { id: "s3", name: "Demo Follow-up", status: "paused", steps: 5, activeLeads: 47 },
-];
+import { cn } from "@/lib/utils";
+import { listSequences } from "@/lib/marketing-email";
 
 export default function SequencesPage() {
+  const [sequences, setSequences] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await listSequences();
+        setSequences(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        setError(e?.message || "Failed to load sequences");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -19,9 +35,9 @@ export default function SequencesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Email Sequences</h1>
           <p className="text-sm text-muted-foreground">Automated multi-step outbound flows with status control.</p>
         </div>
-        <Button asChild>
-          <Link href="/email/new">Build New Sequence</Link>
-        </Button>
+        <Link href="/email/new" className={cn(buttonVariants({ variant: "default" }))}>
+          Build New Sequence
+        </Link>
       </div>
 
       <Card>
@@ -29,6 +45,8 @@ export default function SequencesPage() {
           <CardTitle className="text-base">Sequence List</CardTitle>
         </CardHeader>
         <CardContent>
+          {loading ? <p className="mb-3 text-sm text-muted-foreground">Loading sequences...</p> : null}
+          {error ? <p className="mb-3 text-sm text-destructive">{error}</p> : null}
           <div className="overflow-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
@@ -46,8 +64,8 @@ export default function SequencesPage() {
                     <td className="px-3 py-2">
                       <Badge variant={seq.status === "active" ? "success" : "secondary"}>{seq.status}</Badge>
                     </td>
-                    <td className="px-3 py-2">{seq.steps}</td>
-                    <td className="px-3 py-2">{seq.activeLeads}</td>
+                    <td className="px-3 py-2">{Array.isArray(seq.steps) ? seq.steps.length : 0}</td>
+                    <td className="px-3 py-2">{seq.active_leads ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
