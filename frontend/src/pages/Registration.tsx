@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle, AlertCircle, Info, ChevronRight, Copy } from 'lucide-react';
 
 interface RegistrationStep {
@@ -16,6 +17,7 @@ interface ValidationResult {
 }
 
 const Registration: React.FC = () => {
+  const navigate = useNavigate();
   // Step 1: Company Info
   const [step, setStep] = useState(1);
   const [sessionId, setSessionId] = useState('');
@@ -38,10 +40,6 @@ const Registration: React.FC = () => {
   const [selectedProvider, setSelectedProvider] = useState('namecheap');
   const [dnsGuide, setDnsGuide] = useState('');
 
-  // Step 5: Password
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
-
   // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +52,6 @@ const Registration: React.FC = () => {
     { step: 2, title: 'Email Verification', description: 'Verify your email address' },
     { step: 3, title: 'Outbound Email', description: 'Configure your sending email' },
     { step: 4, title: 'DNS Configuration', description: 'Set up DKIM & SPF records' },
-    { step: 5, title: 'Password Setup', description: 'Create your account password' },
   ];
 
   // ==================== STEP 1: Company Info ====================
@@ -175,12 +172,7 @@ const Registration: React.FC = () => {
       setValidation(data.validation);
       setSuccess(data.message);
 
-      // If all valid, skip to password setup
-      if (data.validation.dkimValid && data.validation.spfValid) {
-        setStep(5);
-      } else {
-        setStep(4);
-      }
+      setStep(4);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -240,9 +232,8 @@ const Registration: React.FC = () => {
       setValidation(data.validation);
       setSuccess(data.message);
 
-      // If all valid now, proceed to password setup
       if (data.allValid) {
-        setTimeout(() => setStep(5), 1500);
+        setSuccess('All validations passed. You can continue to dashboard.');
       }
     } catch (err: any) {
       setError(err.message);
@@ -251,50 +242,8 @@ const Registration: React.FC = () => {
     }
   };
 
-  // ==================== STEP 5: Password Setup ====================
-  const handleCompleteRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    if (password !== passwordConfirm) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/auth/registration/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to complete registration');
-      }
-
-      // Store tokens
-      localStorage.setItem('accessToken', data.tokens.accessToken);
-      localStorage.setItem('refreshToken', data.tokens.refreshToken);
-
-      setSuccess('Registration completed successfully!');
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1500);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleFinishOnboarding = () => {
+    navigate('/dashboard');
   };
 
   const copyToClipboard = (text: string) => {
@@ -304,30 +253,12 @@ const Registration: React.FC = () => {
 
   // ==================== RENDER ====================
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Sidebar */}
-      <div style={{ width: '280px', background: '#1a1a1a', color: 'white', padding: '30px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '100vh' }}>
-        <div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '40px', height: '40px', background: '#2563eb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold' }}>LS</div>
-            Logik Sense
-          </div>
-          <div style={{ fontSize: '13px', color: '#999', marginBottom: '40px', lineHeight: '1.6' }}>
-            Marketing Automation Platform Registration
-          </div>
-        </div>
-        <div style={{ fontSize: '12px', color: '#666' }}>
-          © 2026 Logik Sense
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-        <div style={{ width: '100%', maxWidth: '700px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: '700px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ background: '#f9fafb', padding: '30px', borderBottom: '1px solid #e5e7eb' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' }}>Create Account</div>
-          <div style={{ fontSize: '14px', color: '#6b7280' }}>Multi-step registration with email verification and DNS setup</div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' }}>Workspace Onboarding</div>
+          <div style={{ fontSize: '14px', color: '#6b7280' }}>Configure company and outbound email settings</div>
         </div>
 
         {/* Progress Indicator */}
@@ -430,11 +361,11 @@ const Registration: React.FC = () => {
                   onChange={(e) => setNumberOfEmployees(Number(e.target.value))}
                   style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
                 >
-                  <option>1-10</option>
-                  <option>11-50</option>
-                  <option>51-100</option>
-                  <option>101-500</option>
-                  <option>500+</option>
+                  <option value={10}>1-10</option>
+                  <option value={50}>11-50</option>
+                  <option value={100}>51-100</option>
+                  <option value={500}>101-500</option>
+                  <option value={1000}>500+</option>
                 </select>
               </div>
 
@@ -724,7 +655,7 @@ const Registration: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(5)}
+                  onClick={handleFinishOnboarding}
                   style={{
                     padding: '12px 16px',
                     background: '#f3f4f6',
@@ -736,66 +667,12 @@ const Registration: React.FC = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  Skip for Now
+                  Continue to Dashboard
                 </button>
               </div>
             </div>
           )}
-
-          {/* STEP 5: Password Setup */}
-          {step === 5 && (
-            <form onSubmit={handleCompleteRegistration}>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>Create Your Password</h2>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  required
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>Confirm Password</label>
-                <input
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="Re-enter your password"
-                  required
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !password || !passwordConfirm}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: error ? '#000000' : (loading || !password || !passwordConfirm ? '#d1d5db' : '#10b981'),
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: loading || !password || !passwordConfirm ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                {loading ? 'Creating Account...' : 'Complete Registration'} {!loading && <CheckCircle size={20} />}
-              </button>
-            </form>
-          )}
         </div>
-      </div>
     </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, Get, Request, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegistrationService } from './registration.service';
 import { EmailValidationService } from './email-validation.service';
@@ -39,7 +39,7 @@ export class AuthController {
   @Get('me')
   async getMe(@Request() req: any) {
     if (!req.user) {
-      return { message: 'Not authenticated' };
+      throw new UnauthorizedException('Not authenticated');
     }
     return {
       user: await this.authService.validateUser(req.user.userId),

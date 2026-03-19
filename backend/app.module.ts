@@ -19,6 +19,8 @@ import { WebhookService } from './modules/leads/webhook.service';
 import { WebhookController } from './modules/leads/webhook.controller';
 import { ContactService } from './modules/contacts/contact.service';
 import { ContactController } from './modules/contacts/contact.controller';
+import { EmailController } from './modules/email/email.controller';
+import { EmailService } from './modules/email/email.service';
 // import { EmailModule } from '@modules/email/email.module';
 
 @Module({
@@ -43,6 +45,7 @@ import { ContactController } from './modules/contacts/contact.controller';
     LeadController,
     WebhookController,
     ContactController,
+    EmailController,
   ],
   providers: [
     AuthService,
@@ -56,6 +59,7 @@ import { ContactController } from './modules/contacts/contact.controller';
     EmailAnalyticsService,
     WebhookService,
     ContactService,
+    EmailService,
   ],
 })
 export class AppModule implements NestModule {

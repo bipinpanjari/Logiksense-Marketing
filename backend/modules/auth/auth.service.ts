@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { SignOptions } from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
 import { getDatabase } from '../../shared/database';
 import { CreateUserDto, LoginUserDto, SignUpResponseDto } from '../../shared/types';
@@ -7,6 +8,12 @@ import { CreateUserDto, LoginUserDto, SignUpResponseDto } from '../../shared/typ
 @Injectable()
 export class AuthService {
   constructor(private jwtService: JwtService) {}
+
+  private resolveExpiry(value: string | undefined, fallback: SignOptions['expiresIn']): SignOptions['expiresIn'] {
+    if (!value) return fallback;
+    const asNumber = Number(value);
+    return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : (value as SignOptions['expiresIn']);
+  }
 
   async signup(createUserDto: CreateUserDto): Promise<SignUpResponseDto> {
     const { email, password, firstName, lastName } = createUserDto;
@@ -124,8 +131,16 @@ export class AuthService {
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
     try {
+      const refreshSecret = process.env.JWT_REFRESH_SECRET;
+      const accessSecret = process.env.JWT_SECRET;
+      const accessExpiration = this.resolveExpiry(process.env.JWT_EXPIRATION, '1d');
+
+      if (!refreshSecret || !accessSecret) {
+        throw new UnauthorizedException('JWT secrets are not configured');
+      }
+
       const decoded = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_SECRET,
+        secret: refreshSecret,
       });
 
       const accessToken = this.jwtService.sign({
@@ -133,6 +148,9 @@ export class AuthService {
         workspaceId: decoded.workspaceId,
         email: decoded.email,
         role: decoded.role,
+      }, {
+        secret: accessSecret,
+        expiresIn: accessExpiration,
       });
 
       return { accessToken };
@@ -142,14 +160,25 @@ export class AuthService {
   }
 
   private generateTokens(userId: string, workspaceId: string, email: string, role: string) {
+    const accessSecret = process.env.JWT_SECRET;
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    const accessExpiration = this.resolveExpiry(process.env.JWT_EXPIRATION, '1d');
+    const refreshExpiration = this.resolveExpiry(process.env.JWT_REFRESH_EXPIRATION, '7d');
+
+    if (!accessSecret || !refreshSecret) {
+      throw new UnauthorizedException('JWT secrets are not configured');
+    }
+
     const payload = { userId, workspaceId, email, role };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '1d',
+      secret: accessSecret,
+      expiresIn: accessExpiration,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
+      secret: refreshSecret,
+      expiresIn: refreshExpiration,
     });
 
     return { accessToken, refreshToken };
