@@ -146,6 +146,8 @@ export class RegistrationService {
       emailValid: boolean;
       dkimValid: boolean;
       spfValid: boolean;
+      dmarcValid: boolean;
+      dmarcPolicy?: 'none' | 'quarantine' | 'reject';
       errors: string[];
       warnings: string[];
     };
@@ -173,22 +175,40 @@ export class RegistrationService {
 
       // Save email config
       await db.query(
-        `UPDATE registration_sessions 
-         SET sending_email = $1, domain = $2, dkim_selector = $3, dkim_valid = $4, spf_valid = $5, step = $6
-         WHERE session_id = $7`,
-        [emailConfig.sendingEmail, emailConfig.domain, dkimSelector, validation.dkimValid, validation.spfValid, 4, sessionId]
+        `UPDATE registration_sessions
+         SET sending_email = $1,
+             domain = $2,
+             dkim_selector = $3,
+             dkim_valid = $4,
+             spf_valid = $5,
+             dmarc_valid = $6,
+             dmarc_policy = $7,
+             step = $8
+         WHERE session_id = $9`,
+        [
+          emailConfig.sendingEmail,
+          emailConfig.domain,
+          dkimSelector,
+          validation.dkimValid,
+          validation.spfValid,
+          validation.dmarcValid,
+          validation.dmarcPolicy ?? null,
+          4,
+          sessionId,
+        ],
       );
 
       const dnsGuideProviders = ['namecheap', 'godaddy', 'route53', 'cloudflare', 'generic'];
 
+      const dnsOk = validation.dkimValid && validation.spfValid && validation.dmarcValid;
       return {
         step: 4,
         validation,
         dkimSelector,
         dnsGuideProviders,
-        message: validation.dkimValid && validation.spfValid
-          ? 'DKIM and SPF configured correctly! Complete registration.'
-          : 'DKIM/SPF not fully configured. Follow the DNS guide to complete setup.',
+        message: dnsOk
+          ? 'DKIM, SPF, and DMARC configured correctly! Complete registration.'
+          : 'One or more DNS records are missing. Follow the DNS guide to complete setup.',
       };
     } catch (error) {
       console.error('Outbound email configuration error:', error);
@@ -224,6 +244,8 @@ export class RegistrationService {
       emailValid: boolean;
       dkimValid: boolean;
       spfValid: boolean;
+      dmarcValid: boolean;
+      dmarcPolicy?: 'none' | 'quarantine' | 'reject';
       errors: string[];
       warnings: string[];
     };
@@ -238,13 +260,21 @@ export class RegistrationService {
         emailConfig.domain
       );
 
-      // Update session
       await db.query(
-        `UPDATE registration_sessions SET dkim_valid = $1, spf_valid = $2 WHERE session_id = $3`,
-        [validation.dkimValid, validation.spfValid, sessionId]
+        `UPDATE registration_sessions
+         SET dkim_valid = $1, spf_valid = $2, dmarc_valid = $3, dmarc_policy = $4
+         WHERE session_id = $5`,
+        [
+          validation.dkimValid,
+          validation.spfValid,
+          validation.dmarcValid,
+          validation.dmarcPolicy ?? null,
+          sessionId,
+        ],
       );
 
-      const allValid = validation.dkimValid && validation.spfValid;
+      const allValid =
+        validation.dkimValid && validation.spfValid && validation.dmarcValid;
 
       return {
         validation,
@@ -326,8 +356,11 @@ export class RegistrationService {
 
       // Create email config (workspace-scoped)
       await db.query(
-        `INSERT INTO email_configs (workspace_id, customer_id, sending_email, domain, dkim_selector, dkim_valid, spf_valid)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO email_configs (
+           workspace_id, customer_id, sending_email, domain, dkim_selector,
+           dkim_valid, spf_valid, dmarc_valid, dmarc_policy
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           workspace.id,
           user.id,
@@ -336,7 +369,9 @@ export class RegistrationService {
           session.dkim_selector,
           session.dkim_valid,
           session.spf_valid,
-        ]
+          session.dmarc_valid ?? false,
+          session.dmarc_policy ?? null,
+        ],
       );
 
       // Delete session (cleanup)
@@ -387,6 +422,8 @@ export class RegistrationService {
         domain: session.domain,
         dkimValid: session.dkim_valid,
         spfValid: session.spf_valid,
+        dmarcValid: session.dmarc_valid,
+        dmarcPolicy: session.dmarc_policy,
       };
     } catch (error) {
       console.error('Session status error:', error);

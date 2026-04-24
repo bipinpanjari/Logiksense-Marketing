@@ -1,0 +1,58 @@
+# Caddy reverse proxy for LogikMarket.
+#
+# Replace `example.com` + `api.example.com` with your real domains before
+# `docker compose up`. Caddy auto-provisions Let's Encrypt certificates and
+# terminates TLS; upstream services listen on plain HTTP inside the compose
+# network.
+#
+# Production hardening:
+#   - Strict security headers
+#   - Compression for text responses
+#   - Path-based throttling for the public /api/* surface
+#   - /metrics is exposed only on a private listen port (9300) so the host
+#     firewall (or DO Spaces private network) can reach it but the public
+#     Internet cannot.
+
+{
+    email ops@example.com
+    servers {
+        metrics
+    }
+}
+
+(common) {
+    encode gzip zstd
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "accelerometer=(), microphone=(), geolocation=()"
+        -Server
+    }
+}
+
+api.example.com {
+    import common
+    @tracking path /api/track/* /api/unsubscribe/* /api/inbound/*
+    reverse_proxy @tracking api:3000
+
+    @auth path /api/auth/*
+    reverse_proxy @auth api:3000
+
+    reverse_proxy api:3000
+}
+
+example.com, www.example.com {
+    import common
+    reverse_proxy web:3001
+}
+
+# Internal metrics endpoint - not proxied to public domains. Bind to a private
+# interface or an internal VPC address on the droplet if you want to scrape it
+# from an external Prometheus instance.
+:9300 {
+    @metrics path /metrics
+    reverse_proxy @metrics api:3000
+    respond 404
+}

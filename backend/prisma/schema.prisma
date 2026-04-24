@@ -19,6 +19,9 @@ model Customer {
   stripeCustomerId    String?  @map("stripe_customer_id") @db.VarChar(255)
   stripeSubscriptionId String? @map("stripe_subscription_id") @db.VarChar(255)
   monthlyUsageLimit   Int      @default(5000) @map("monthly_usage_limit")
+  role                String   @default("owner") @db.VarChar(20)
+  gdprDeletionRequestedAt DateTime? @map("gdpr_deletion_requested_at") @db.Timestamp(6)
+  gdprDeletedAt        DateTime? @map("gdpr_deleted_at") @db.Timestamp(6)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
@@ -34,6 +37,8 @@ model Customer {
   emailSequences          EmailSequence[]
   emailCampaigns          EmailCampaign[]
   activityLogsPerformed   ActivityLog[]           @relation("ActivityPerformedBy")
+  searchProfiles          SearchProfile[]
+  scraperJobs             ScraperJob[]
 
   @@map("customers")
 }
@@ -41,14 +46,29 @@ model Customer {
 model Workspace {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   customerId String   @map("customer_id") @db.Uuid
+  companyId  String?  @map("company_id") @db.Uuid
   name       String   @db.VarChar(255)
   settings   Json     @default("{}")
   emailProviderConfig Json? @map("email_provider_config")
   isActive   Boolean  @default(true) @map("is_active")
+  scrapingEnabled       Boolean   @default(false) @map("scraping_enabled")
+  scrapingTosAcceptedAt DateTime? @map("scraping_tos_accepted_at") @db.Timestamp(6)
+  scrapingTosAcceptedBy String?   @map("scraping_tos_accepted_by") @db.Uuid
+  linkedinEnabled       Boolean   @default(false) @map("linkedin_enabled")
+  linkedinTosAcceptedAt DateTime? @map("linkedin_tos_accepted_at") @db.Timestamp(6)
+  linkedinTosAcceptedBy String?   @map("linkedin_tos_accepted_by") @db.Uuid
+  aiPersonalizationEnabled Boolean  @default(false) @map("ai_personalization_enabled")
+  aiProvider               String   @default("platform") @map("ai_provider") @db.VarChar(32)
+  aiOpenaiVaultRef         String?  @map("ai_openai_vault_ref") @db.VarChar(255)
+  enrichmentEnabled        Boolean  @default(false) @map("enrichment_enabled")
+  zerobounceVaultRef       String?  @map("zerobounce_vault_ref") @db.VarChar(255)
+  apolloVaultRef           String?  @map("apollo_vault_ref") @db.VarChar(255)
+  inboundWebhookToken      String?  @map("inbound_webhook_token") @db.VarChar(64)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
   customer       Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   apiKeys        ApiKey[]
   leads          Lead[]
   contacts       Contact[]
@@ -62,6 +82,19 @@ model Workspace {
   emailSequences EmailSequence[]
   emailCampaigns EmailCampaign[]
   emailLogs      EmailLog[]
+  searchProfiles  SearchProfile[]
+  scraperJobs     ScraperJob[]
+  searchItems     SearchItem[]
+  searchHistory   SearchHistory[]
+  linkedinAccounts   LinkedInAccount[]
+  linkedinCampaigns  LinkedInCampaign[]
+  linkedinSequences  LinkedInSequence[]
+  linkedinMessages   LinkedInMessage[]
+  linkedinAuditLog   LinkedInAuditLog[]
+  aiUsageLog         AiUsageLog[]
+  enrichmentCache    EnrichmentCache[]
+  contactNotes       ContactNote[]
+  inboundReplies     InboundReply[]
 
   @@unique([customerId, name])
   @@index([customerId], map: "idx_workspaces_customer")
@@ -94,10 +127,17 @@ model Lead {
   email           String    @db.VarChar(255)
   phone           String?   @db.VarChar(50)
   company         String?   @db.VarChar(255)
+  jobTitle        String?   @map("job_title") @db.VarChar(255)
+  companySize     Int?      @map("company_size")
+  city            String?   @db.VarChar(255)
+  state           String?   @db.VarChar(255)
+  country         String?   @db.VarChar(255)
   source          String?   @db.VarChar(100)
   tags            String[]  @default([])
   customFields    Json      @default("{}") @map("custom_fields")
   isSuppressed    Boolean   @default(false) @map("is_suppressed")
+  isUnsubscribed  Boolean   @default(false) @map("is_unsubscribed")
+  unsubscribedAt  DateTime? @map("unsubscribed_at") @db.Timestamp(6)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
   createdBy       String?   @map("created_by") @db.Uuid
@@ -105,6 +145,16 @@ model Lead {
   engagementScore Int       @default(0) @map("engagement_score")
   qualityScore    Int       @default(0) @map("quality_score")
   lastScoreUpdated DateTime @default(now()) @map("last_score_updated") @db.Timestamp(6)
+  enrichment      Json      @default("{}") @map("enrichment")
+  nameDetection   Json      @default("{}") @map("name_detection")
+  icebreaker      String?   @map("icebreaker")
+  emailValidationStatus String? @map("email_validation_status") @db.VarChar(32)
+  lastEnrichedAt  DateTime? @map("last_enriched_at") @db.Timestamp(6)
+  pipelineStage   String    @default("new") @map("pipeline_stage") @db.VarChar(32)
+  pipelineStageUpdatedAt DateTime? @default(now()) @map("pipeline_stage_updated_at") @db.Timestamp(6)
+  lastContactedAt DateTime? @map("last_contacted_at") @db.Timestamp(6)
+  lastRepliedAt   DateTime? @map("last_replied_at") @db.Timestamp(6)
+  replyCount      Int       @default(0) @map("reply_count")
 
   workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creator        Customer?         @relation("LeadCreatedBy", fields: [createdBy], references: [id])
@@ -114,12 +164,16 @@ model Lead {
   emailAnalytics EmailAnalytics[]
   sequenceEnrollments SequenceLeadEnrollment[]
   emailLogs          EmailLog[]
+  searchItems        SearchItem[]
+  linkedinSequences  LinkedInSequence[]
 
   @@index([workspaceId], map: "idx_leads_workspace")
   @@index([email], map: "idx_leads_email")
   @@index([company], map: "idx_leads_company")
   @@index([leadScore], map: "idx_leads_lead_score")
   @@index([qualityScore], map: "idx_leads_quality_score")
+  @@index([jobTitle], map: "idx_leads_job_title")
+  @@index([isUnsubscribed], map: "idx_leads_is_unsubscribed")
   @@map("leads")
 }
 
@@ -130,12 +184,15 @@ model Contact {
   notes          String?
   lastActivityAt DateTime? @map("last_activity_at") @db.Timestamp(6)
   activityLog    Json      @default("[]") @map("activity_log")
+  timeline       Json      @default("[]") @map("timeline")
+  pinned         Boolean   @default(false) @map("pinned")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
+  @@unique([workspaceId, leadId], map: "idx_contacts_workspace_lead_unique")
   @@index([workspaceId], map: "idx_contacts_workspace")
   @@map("contacts")
 }
@@ -206,6 +263,8 @@ model RegistrationSession {
   dkimSelector        String?   @default("logik") @map("dkim_selector") @db.VarChar(255)
   dkimValid           Boolean   @default(false) @map("dkim_valid")
   spfValid            Boolean   @default(false) @map("spf_valid")
+  dmarcValid          Boolean   @default(false) @map("dmarc_valid")
+  dmarcPolicy         String?   @map("dmarc_policy") @db.VarChar(16)
   step                Int       @default(1)
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   expiresAt           DateTime? @map("expires_at") @db.Timestamp(6)
@@ -228,7 +287,8 @@ model Company {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workspaces Workspace[]
 
   @@index([customerId], map: "idx_companies_customer_id")
   @@map("companies")
@@ -244,6 +304,7 @@ model EmailConfig {
   dkimValid             Boolean   @default(false) @map("dkim_valid")
   spfValid              Boolean   @default(false) @map("spf_valid")
   dmarcValid            Boolean   @default(false) @map("dmarc_valid")
+  dmarcPolicy           String?   @map("dmarc_policy") @db.VarChar(16)
   smtpHost              String?   @map("smtp_host") @db.VarChar(255)
   smtpPort              Int?      @default(587) @map("smtp_port")
   smtpUser              String?   @map("smtp_user") @db.VarChar(255)
@@ -346,19 +407,25 @@ model SegmentMember {
 }
 
 model EmailAnalytics {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId   String    @map("workspace_id") @db.Uuid
-  leadId        String    @map("lead_id") @db.Uuid
-  campaignId    String?   @map("campaign_id") @db.Uuid
-  emailSubject  String?   @map("email_subject") @db.VarChar(255)
-  emailSentAt   DateTime? @map("email_sent_at") @db.Timestamp(6)
-  emailOpenedAt DateTime? @map("email_opened_at") @db.Timestamp(6)
-  openedCount   Int       @default(0) @map("opened_count")
-  clickCount    Int       @default(0) @map("click_count")
-  bounced       Boolean   @default(false)
-  unsubscribed  Boolean   @default(false)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  leadId         String    @map("lead_id") @db.Uuid
+  campaignId     String?   @map("campaign_id") @db.Uuid
+  emailAddress   String?   @map("email_address") @db.VarChar(255)
+  emailSubject   String?   @map("email_subject") @db.VarChar(255)
+  emailSentAt    DateTime? @map("email_sent_at") @db.Timestamp(6)
+  emailOpenedAt  DateTime? @map("email_opened_at") @db.Timestamp(6)
+  emailClickedAt DateTime? @map("email_clicked_at") @db.Timestamp(6)
+  clickedUrl     String?   @map("clicked_url")
+  openedCount    Int       @default(0) @map("opened_count")
+  clickCount     Int       @default(0) @map("click_count")
+  bounced        Boolean   @default(false)
+  emailBounced   Boolean   @default(false) @map("email_bounced")
+  bounceType     String?   @map("bounce_type") @db.VarChar(32)
+  unsubscribed   Boolean   @default(false)
+  isUnsubscribed Boolean   @default(false) @map("is_unsubscribed")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -385,6 +452,7 @@ model EmailTemplate {
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   sequenceSteps EmailSequenceStep[]
   emailLogs      EmailLog[]
+  campaigns      EmailCampaign[] @relation("CampaignTemplate")
 
   @@index([workspaceId], map: "idx_email_templates_workspace_id")
   @@index([customerId], map: "idx_email_templates_customer_id")
@@ -408,6 +476,7 @@ model EmailSequence {
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   sequenceSteps       EmailSequenceStep[]
   leadEnrollments     SequenceLeadEnrollment[]
+  campaigns           EmailCampaign[] @relation("CampaignSequence")
 
   @@index([workspaceId], map: "idx_email_sequences_workspace_id")
   @@index([customerId], map: "idx_email_sequences_customer_id")
@@ -456,50 +525,445 @@ model SequenceLeadEnrollment {
 }
 
 model EmailLog {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId  String    @map("workspace_id") @db.Uuid
-  leadId       String    @map("lead_id") @db.Uuid
-  templateId   String?   @map("template_id") @db.Uuid
-  messageId    String?   @map("message_id") @db.VarChar(255)
-  status       String    @default("pending") @db.VarChar(50)
-  error        String?
-  enrollmentId String?   @map("enrollment_id") @db.Uuid
-  sentAt       DateTime  @default(now()) @map("sent_at") @db.Timestamp(6)
-  openedAt     DateTime? @map("opened_at") @db.Timestamp(6)
-  clickedAt    DateTime? @map("clicked_at") @db.Timestamp(6)
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  leadId         String    @map("lead_id") @db.Uuid
+  templateId     String?   @map("template_id") @db.Uuid
+  campaignId     String?   @map("campaign_id") @db.Uuid
+  subject        String?   @db.VarChar(512)
+  messageId      String?   @map("message_id") @db.VarChar(255)
+  status         String    @default("pending") @db.VarChar(50)
+  error          String?
+  enrollmentId   String?   @map("enrollment_id") @db.Uuid
+  trackingToken  String?   @map("tracking_token") @db.VarChar(64)
+  bounceReason   String?   @map("bounce_reason")
+  bouncedAt      DateTime? @map("bounced_at") @db.Timestamp(6)
+  sentAt         DateTime  @default(now()) @map("sent_at") @db.Timestamp(6)
+  openedAt       DateTime? @map("opened_at") @db.Timestamp(6)
+  clickedAt      DateTime? @map("clicked_at") @db.Timestamp(6)
 
   workspace  Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   lead       Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
   template   EmailTemplate?         @relation(fields: [templateId], references: [id])
+  campaign   EmailCampaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   enrollment SequenceLeadEnrollment? @relation(fields: [enrollmentId], references: [id])
 
   @@index([workspaceId], map: "idx_email_logs_workspace")
   @@index([leadId], map: "idx_email_logs_lead")
   @@index([status], map: "idx_email_logs_status")
   @@index([sentAt], map: "idx_email_logs_sent_at")
+  @@index([campaignId], map: "idx_email_logs_campaign")
   @@map("email_logs")
 }
 
 model EmailCampaign {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId   String    @map("workspace_id") @db.Uuid
-  customerId    String    @map("customer_id") @db.Uuid
-  name          String    @db.VarChar(255)
-  status        String    @default("draft") @db.VarChar(30)
-  audienceCount Int       @default(0) @map("audience_count")
-  openRate      Decimal   @default(0) @map("open_rate") @db.Decimal(5, 2)
-  clickRate     Decimal   @default(0) @map("click_rate") @db.Decimal(5, 2)
-  scheduledAt   DateTime? @map("scheduled_at") @db.Timestamp(6)
-  launchedAt    DateTime? @map("launched_at") @db.Timestamp(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String    @map("workspace_id") @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  name              String    @db.VarChar(255)
+  status            String    @default("draft") @db.VarChar(30)
+  templateId        String?   @map("template_id") @db.Uuid
+  sequenceId        String?   @map("sequence_id") @db.Uuid
+  segmentId         String?   @map("segment_id") @db.Uuid
+  audienceCount     Int       @default(0) @map("audience_count")
+  sentCount         Int       @default(0) @map("sent_count")
+  openedCount       Int       @default(0) @map("opened_count")
+  clickedCount      Int       @default(0) @map("clicked_count")
+  bouncedCount      Int       @default(0) @map("bounced_count")
+  unsubscribedCount Int       @default(0) @map("unsubscribed_count")
+  openRate          Decimal   @default(0) @map("open_rate") @db.Decimal(5, 2)
+  clickRate         Decimal   @default(0) @map("click_rate") @db.Decimal(5, 2)
+  error             String?
+  scheduledAt       DateTime? @map("scheduled_at") @db.Timestamp(6)
+  launchedAt        DateTime? @map("launched_at") @db.Timestamp(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  template  EmailTemplate? @relation("CampaignTemplate", fields: [templateId], references: [id], onDelete: SetNull)
+  sequence  EmailSequence? @relation("CampaignSequence", fields: [sequenceId], references: [id], onDelete: SetNull)
+  emailLogs EmailLog[]
 
   @@index([workspaceId], map: "idx_email_campaigns_workspace_id")
   @@index([customerId], map: "idx_email_campaigns_customer_id")
   @@index([status], map: "idx_email_campaigns_status")
+  @@index([templateId], map: "idx_email_campaigns_template")
+  @@index([sequenceId], map: "idx_email_campaigns_sequence")
   @@map("email_campaigns")
 }
 
+model VaultSecret {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String?  @map("workspace_id") @db.Uuid
+  customerId     String?  @map("customer_id") @db.Uuid
+  scope          String   @db.VarChar(64)
+  refKey         String   @map("ref_key") @db.VarChar(191)
+  encryptedValue String   @map("encrypted_value")
+  metadata       Json     @default("{}") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([workspaceId], map: "idx_vault_workspace")
+  @@index([customerId], map: "idx_vault_customer")
+  @@map("vault_secrets")
+}
+
+model SearchProfile {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  customerId    String   @map("customer_id") @db.Uuid
+  name          String   @db.VarChar(255)
+  businessType  String   @map("business_type") @db.VarChar(255)
+  city          String?  @db.VarChar(255)
+  country       String?  @db.VarChar(255)
+  query         String
+  targetLimit   Int      @default(10) @map("target_limit")
+  providers     Json     @default("[\"gmaps\"]")
+  scheduleCron  String?  @map("schedule_cron") @db.VarChar(100)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  scraperJobs  ScraperJob[]
+
+  @@index([workspaceId], map: "idx_search_profiles_workspace")
+  @@index([workspaceId, isActive], map: "idx_search_profiles_active")
+  @@map("search_profiles")
+}
+
+model ScraperJob {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  customerId      String   @map("customer_id") @db.Uuid
+  searchProfileId String?  @map("search_profile_id") @db.Uuid
+  provider        String   @default("gmaps") @db.VarChar(64)
+  query           String
+  businessType    String?  @map("business_type") @db.VarChar(255)
+  city            String?  @db.VarChar(255)
+  country         String?  @db.VarChar(255)
+  targetLimit     Int      @default(10) @map("target_limit")
+  status          String   @default("queued") @db.VarChar(32)
+  leadsFound      Int      @default(0) @map("leads_found")
+  leadsWithEmail  Int      @default(0) @map("leads_with_email")
+  error           String?
+  bullmqId        String?  @map("bullmq_id") @db.VarChar(128)
+  /// Human-readable step (e.g. "Google Maps: place 3/20") for running jobs
+  progressLabel  String?  @map("progress_label") @db.VarChar(500)
+  /// 0–100; shown while status is running/queued
+  progressPct     Int?     @map("progress_pct")
+  startedAt       DateTime? @map("started_at") @db.Timestamp(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamp(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  searchProfile SearchProfile? @relation(fields: [searchProfileId], references: [id], onDelete: SetNull)
+  items         SearchItem[]
+  history       SearchHistory[]
+
+  @@index([workspaceId], map: "idx_scraper_jobs_workspace")
+  @@index([workspaceId, status], map: "idx_scraper_jobs_status")
+  @@index([searchProfileId], map: "idx_scraper_jobs_profile")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_scraper_jobs_created")
+  @@map("scraper_jobs")
+}
+
+model SearchItem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  scraperJobId  String   @map("scraper_job_id") @db.Uuid
+  provider      String   @default("gmaps") @db.VarChar(64)
+  businessName  String   @map("business_name") @db.VarChar(512)
+  category      String?  @db.VarChar(255)
+  city          String?  @db.VarChar(255)
+  country       String?  @db.VarChar(255)
+  websiteUrl    String?  @map("website_url")
+  phone         String?  @db.VarChar(64)
+  rating        Decimal? @db.Decimal(3, 1)
+  reviewCount   Int?     @map("review_count")
+  hasWebsite    Boolean  @default(false) @map("has_website")
+  emails        Json     @default("[]")
+  phones        Json     @default("[]")
+  leadId        String?  @map("lead_id") @db.Uuid
+  leadStatus    String   @default("pending") @map("lead_status") @db.VarChar(32)
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scraperJob ScraperJob @relation(fields: [scraperJobId], references: [id], onDelete: Cascade)
+  lead       Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId], map: "idx_search_items_workspace")
+  @@index([scraperJobId], map: "idx_search_items_job")
+  @@index([workspaceId, leadStatus], map: "idx_search_items_status")
+  @@map("search_items")
+}
+
+model SearchHistory {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  scraperJobId   String?  @map("scraper_job_id") @db.Uuid
+  provider       String   @db.VarChar(64)
+  query          String
+  leadsFound     Int      @default(0) @map("leads_found")
+  leadsWithEmail Int      @default(0) @map("leads_with_email")
+  durationMs     Int?     @map("duration_ms")
+  outcome        String   @db.VarChar(32)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scraperJob ScraperJob? @relation(fields: [scraperJobId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId], map: "idx_search_history_workspace")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_search_history_created")
+  @@map("search_history")
+}
+
+
+model LinkedInAccount {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String   @map("workspace_id") @db.Uuid
+  customerId        String   @map("customer_id") @db.Uuid
+  email             String   @db.VarChar(255)
+  displayName       String?  @map("display_name") @db.VarChar(255)
+  status            String   @default("active") @db.VarChar(32)
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamp(6)
+  lastError         String?  @map("last_error")
+  actionsToday      Int      @default(0) @map("actions_today")
+  actionsThisHour   Int      @default(0) @map("actions_this_hour")
+  actionsThisWeek   Int      @default(0) @map("actions_this_week")
+  dayWindowStart    DateTime? @map("day_window_start") @db.Timestamp(6)
+  hourWindowStart   DateTime? @map("hour_window_start") @db.Timestamp(6)
+  weekWindowStart   DateTime? @map("week_window_start") @db.Timestamp(6)
+  maxPerDay         Int      @default(40) @map("max_per_day")
+  maxPerHour        Int      @default(8)  @map("max_per_hour")
+  maxPerWeek        Int      @default(200) @map("max_per_week")
+  passwordVaultRef  String?  @map("password_vault_ref") @db.VarChar(255)
+  sessionVaultRef   String?  @map("session_vault_ref") @db.VarChar(255)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns  LinkedInCampaign[]
+  messages   LinkedInMessage[]
+  auditLog   LinkedInAuditLog[]
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId], map: "idx_linkedin_accounts_workspace")
+  @@index([status],      map: "idx_linkedin_accounts_status")
+  @@map("linkedin_accounts")
+}
+
+model LinkedInCampaign {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String   @map("workspace_id") @db.Uuid
+  customerId        String   @map("customer_id") @db.Uuid
+  linkedinAccountId String?  @map("linkedin_account_id") @db.Uuid
+  name              String   @db.VarChar(255)
+  status            String   @default("draft") @db.VarChar(32)
+  jobTitleFilter    String?  @map("job_title_filter")
+  industryFilter    String?  @map("industry_filter")
+  companySizeFilter String?  @map("company_size_filter")
+  seniorityFilter   String?  @map("seniority_filter")
+  location          String?  @db.VarChar(255)
+  maxPerDay         Int      @default(20) @map("max_per_day")
+  messages          Json     @default("[]")
+  lastRunAt         DateTime? @map("last_run_at") @db.Timestamp(6)
+  pausedReason      String?  @map("paused_reason")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  linkedinAccount  LinkedInAccount?   @relation(fields: [linkedinAccountId], references: [id], onDelete: SetNull)
+  sequences        LinkedInSequence[]
+  messagesLog      LinkedInMessage[]
+
+  @@index([workspaceId], map: "idx_linkedin_campaigns_workspace")
+  @@index([status],      map: "idx_linkedin_campaigns_status")
+  @@map("linkedin_campaigns")
+}
+
+model LinkedInSequence {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String   @map("workspace_id") @db.Uuid
+  campaignId         String   @map("campaign_id") @db.Uuid
+  leadId             String?  @map("lead_id") @db.Uuid
+  profileUrl         String   @map("profile_url")
+  firstName          String?  @map("first_name") @db.VarChar(255)
+  lastName           String?  @map("last_name") @db.VarChar(255)
+  jobTitle           String?  @map("job_title") @db.VarChar(255)
+  company            String?  @db.VarChar(255)
+  location           String?  @db.VarChar(255)
+  industry           String?  @db.VarChar(255)
+  recentPost         String?  @map("recent_post")
+  yearsAtCompany     Int?     @map("years_at_company")
+  greetingSalutation String?  @map("greeting_salutation") @db.VarChar(64)
+  threadId           String?  @map("thread_id")
+  sequenceStep       Int      @default(0) @map("sequence_step")
+  status             String   @default("pending") @db.VarChar(32)
+  nextSendAt         DateTime? @map("next_send_at") @db.Timestamp(6)
+  lastActionAt       DateTime? @map("last_action_at") @db.Timestamp(6)
+  replyClassification String?  @map("reply_classification") @db.VarChar(32)
+  replyText          String?  @map("reply_text")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign   LinkedInCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  lead       Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages   LinkedInMessage[]
+
+  @@unique([campaignId, profileUrl])
+  @@index([workspaceId], map: "idx_linkedin_seq_workspace")
+  @@index([campaignId],  map: "idx_linkedin_seq_campaign")
+  @@index([status],      map: "idx_linkedin_seq_status")
+  @@index([nextSendAt],  map: "idx_linkedin_seq_next_send")
+  @@map("linkedin_sequences")
+}
+
+model LinkedInMessage {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String   @map("workspace_id") @db.Uuid
+  campaignId        String   @map("campaign_id") @db.Uuid
+  sequenceId        String   @map("sequence_id") @db.Uuid
+  linkedinAccountId String?  @map("linkedin_account_id") @db.Uuid
+  stepNumber        Int      @map("step_number")
+  kind              String   @db.VarChar(32)
+  status            String   @default("queued") @db.VarChar(32)
+  personalisationTag String?  @map("personalisation_tag") @db.VarChar(64)
+  body              String
+  error             String?
+  sentAt            DateTime? @map("sent_at") @db.Timestamp(6)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign        LinkedInCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sequence        LinkedInSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  linkedinAccount LinkedInAccount? @relation(fields: [linkedinAccountId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId], map: "idx_linkedin_msg_workspace")
+  @@index([campaignId],  map: "idx_linkedin_msg_campaign")
+  @@index([sequenceId],  map: "idx_linkedin_msg_sequence")
+  @@map("linkedin_messages")
+}
+
+model LinkedInAuditLog {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String   @map("workspace_id") @db.Uuid
+  customerId        String?  @map("customer_id") @db.Uuid
+  linkedinAccountId String?  @map("linkedin_account_id") @db.Uuid
+  event             String   @db.VarChar(64)
+  details           Json     @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  linkedinAccount LinkedInAccount? @relation(fields: [linkedinAccountId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId], map: "idx_linkedin_audit_workspace")
+  @@index([createdAt(sort: Desc)], map: "idx_linkedin_audit_created")
+  @@map("linkedin_audit_log")
+}
+
+model AiUsageLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  customerId   String?  @map("customer_id") @db.Uuid
+  provider     String   @db.VarChar(32)
+  model        String   @db.VarChar(64)
+  operation    String   @db.VarChar(64)
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  totalTokens  Int?     @map("total_tokens")
+  costCents    Decimal? @map("cost_cents") @db.Decimal(10, 4)
+  byok         Boolean  @default(false)
+  status       String   @default("ok") @db.VarChar(16)
+  error        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId], map: "idx_ai_usage_workspace")
+  @@index([createdAt(sort: Desc)], map: "idx_ai_usage_created")
+  @@map("ai_usage_log")
+}
+
+model EnrichmentCache {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  provider     String   @db.VarChar(32)
+  lookupKey    String   @map("lookup_key") @db.VarChar(255)
+  result       Json     @default("{}")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamp(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider, lookupKey])
+  @@index([workspaceId], map: "idx_enrichment_cache_workspace")
+  @@map("enrichment_cache")
+}
+
+model ContactNote {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  leadId      String   @map("lead_id") @db.Uuid
+  authorId    String?  @map("author_id") @db.Uuid
+  body        String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt(sort: Desc)], map: "idx_contact_notes_lead")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_contact_notes_workspace")
+  @@map("contact_notes")
+}
+
+model InboundReply {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  leadId       String?  @map("lead_id") @db.Uuid
+  emailLogId   String?  @map("email_log_id") @db.Uuid
+  campaignId   String?  @map("campaign_id") @db.Uuid
+  enrollmentId String?  @map("enrollment_id") @db.Uuid
+  fromEmail    String   @map("from_email") @db.VarChar(255)
+  toEmail      String?  @map("to_email") @db.VarChar(255)
+  subject      String?  @db.VarChar(1024)
+  snippet      String?
+  inReplyTo    String?  @map("in_reply_to") @db.VarChar(512)
+  messageId    String?  @map("message_id") @db.VarChar(512)
+  rawHeaders   Json?    @map("raw_headers")
+  receivedAt   DateTime @default(now()) @map("received_at") @db.Timestamp(6)
+  matched      Boolean  @default(false)
+  classification String? @db.VarChar(32)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, receivedAt(sort: Desc)], map: "idx_inbound_replies_workspace")
+  @@index([leadId], map: "idx_inbound_replies_lead")
+  @@index([inReplyTo], map: "idx_inbound_replies_in_reply_to")
+  @@map("inbound_replies")
+}
+
+model GdprRequest {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId   String    @map("customer_id") @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  kind         String    @db.VarChar(20)
+  status       String    @default("pending") @db.VarChar(20)
+  requestedBy  String?   @map("requested_by") @db.Uuid
+  requestedAt  DateTime  @default(now()) @map("requested_at") @db.Timestamp(6)
+  completedAt  DateTime? @map("completed_at") @db.Timestamp(6)
+  exportUrl    String?   @map("export_url")
+  error        String?
+
+  @@index([workspaceId], map: "idx_gdpr_requests_workspace")
+  @@index([customerId], map: "idx_gdpr_requests_customer")
+  @@map("gdpr_requests")
+}

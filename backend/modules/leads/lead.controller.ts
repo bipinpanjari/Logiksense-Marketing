@@ -73,28 +73,6 @@ export class LeadController {
     return this.leadService.getLeadStats(user.workspaceId);
   }
 
-  @Get(':id')
-  async getLead(@Param('id') leadId: string, @Request() req: any) {
-    const user = this.requireAuth(req);
-    return this.leadService.getLead(user.workspaceId, leadId);
-  }
-
-  @Put(':id')
-  async updateLead(
-    @Param('id') leadId: string,
-    @Body() updateLeadDto: UpdateLeadDto,
-    @Request() req: any
-  ) {
-    const user = this.requireAuth(req);
-    return this.leadService.updateLead(user.workspaceId, leadId, updateLeadDto);
-  }
-
-  @Delete(':id')
-  async deleteLead(@Param('id') leadId: string, @Request() req: any) {
-    const user = this.requireAuth(req);
-    return this.leadService.deleteLead(user.workspaceId, leadId);
-  }
-
   // ===== BULK OPERATIONS =====
 
   @Post('bulk/delete')
@@ -338,13 +316,8 @@ export class LeadController {
     return this.segmentationService.getAtRiskSegment(user.workspaceId);
   }
 
-  // ===== EMAIL ANALYTICS =====
-
-  @Get(':id/email-analytics')
-  async getLeadEmailAnalytics(@Param('id') leadId: string, @Request() req: any) {
-    this.requireAuth(req);
-    return this.emailAnalyticsService.getLeadAnalytics(leadId);
-  }
+  // ===== EMAIL ANALYTICS (workspace/campaign level) =====
+  // Lead-level email analytics lives with the other :id routes at the bottom.
 
   @Get('analytics/campaigns/:campaignId')
   async getCampaignAnalytics(@Param('campaignId') campaignId: string, @Request() req: any) {
@@ -367,12 +340,6 @@ export class LeadController {
     );
   }
 
-  @Get(':id/engagement-timeline')
-  async getEngagementTimeline(@Param('id') leadId: string, @Request() req: any) {
-    this.requireAuth(req);
-    return this.emailAnalyticsService.getLeadEngagementTimeline(leadId);
-  }
-
   @Get('analytics/most-engaged')
   async getMostEngagedLeads(@Query('limit') limit?: string, @Request() req?: any) {
     const user = this.requireAuth(req);
@@ -380,5 +347,44 @@ export class LeadController {
       user.workspaceId,
       limit ? parseInt(limit) : 20
     );
+  }
+
+  // ===== PARAMETRIC LEAD-BY-ID ROUTES =====
+  // IMPORTANT: These must remain at the bottom so static routes like
+  // /api/leads/segments, /api/leads/stats, /api/leads/analytics/*,
+  // and /api/leads/score/* are not shadowed by :id.
+
+  @Get(':id/email-analytics')
+  async getLeadEmailAnalytics(@Param('id') leadId: string, @Request() req: any) {
+    this.requireAuth(req);
+    return this.emailAnalyticsService.getLeadAnalytics(leadId);
+  }
+
+  @Get(':id/engagement-timeline')
+  async getEngagementTimeline(@Param('id') leadId: string, @Request() req: any) {
+    this.requireAuth(req);
+    return this.emailAnalyticsService.getLeadEngagementTimeline(leadId);
+  }
+
+  @Get(':id')
+  async getLead(@Param('id') leadId: string, @Request() req: any) {
+    const user = this.requireAuth(req);
+    return this.leadService.getLead(user.workspaceId, leadId);
+  }
+
+  @Put(':id')
+  async updateLead(
+    @Param('id') leadId: string,
+    @Body() updateLeadDto: UpdateLeadDto,
+    @Request() req: any
+  ) {
+    const user = this.requireAuth(req);
+    return this.leadService.updateLead(user.workspaceId, leadId, updateLeadDto);
+  }
+
+  @Delete(':id')
+  async deleteLead(@Param('id') leadId: string, @Request() req: any) {
+    const user = this.requireAuth(req);
+    return this.leadService.deleteLead(user.workspaceId, leadId);
   }
 }

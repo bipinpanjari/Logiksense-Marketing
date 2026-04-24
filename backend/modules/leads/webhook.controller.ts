@@ -12,7 +12,11 @@ export class WebhookController {
     if (!req.user) {
       throw new Error('Unauthorized');
     }
-    return this.webhookService.generateWebhookUrl(req.user.workspaceId, workspaceName);
+    return this.webhookService.generateWebhookUrl(
+      req.user.workspaceId,
+      req.user.userId,
+      workspaceName,
+    );
   }
 
   @Get('webhooks')

@@ -328,8 +328,14 @@ export class AuthService {
       sendingEmail: string;
       domain: string;
       dkimSelector?: string;
+      skipDnsValidation?: boolean;
     }
-  ): Promise<{ success: boolean; onboardingCompleted: boolean; validation: { emailValid: boolean; dkimValid: boolean; spfValid: boolean } }> {
+  ): Promise<{
+    success: boolean;
+    onboardingCompleted: boolean;
+    validationSkipped: boolean;
+    validation: { emailValid: boolean; dkimValid: boolean; spfValid: boolean };
+  }> {
     const companyName = payload.companyName.trim();
     const staffName = payload.staffName.trim();
     const workEmail = payload.workEmail.trim().toLowerCase();
@@ -343,7 +349,17 @@ export class AuthService {
     }
 
     const validation = await this.emailValidation.validateOutboundEmail(sendingEmail, domain);
-    if (!validation.emailValid) {
+    const serverSkipsDns = process.env.ONBOARDING_SKIP_DNS_VALIDATION === 'true';
+    const clientSkipAllowed =
+      process.env.NODE_ENV !== 'production' || process.env.ONBOARDING_ALLOW_CLIENT_DNS_SKIP === 'true';
+    const skipDns = serverSkipsDns || (payload.skipDnsValidation === true && clientSkipAllowed);
+
+    if (!validation.emailValid && !skipDns) {
+      if (payload.skipDnsValidation && !clientSkipAllowed) {
+        throw new BadRequestException(
+          'DNS/MX checks failed and skipping validation is not enabled for this environment. Set ONBOARDING_ALLOW_CLIENT_DNS_SKIP=true on the server, or point MX/DNS for your domain.',
+        );
+      }
       throw new BadRequestException('Email domain validation failed. Please provide a valid work domain.');
     }
 
@@ -432,6 +448,7 @@ export class AuthService {
                 emailValid: validation.emailValid,
                 dkimValid: validation.dkimValid,
                 spfValid: validation.spfValid,
+                skipped: !validation.emailValid && skipDns,
               },
             },
           },
@@ -442,6 +459,7 @@ export class AuthService {
     return {
       success: true,
       onboardingCompleted: true,
+      validationSkipped: !validation.emailValid && skipDns,
       validation: {
         emailValid: validation.emailValid,
         dkimValid: validation.dkimValid,

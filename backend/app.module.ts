@@ -1,9 +1,13 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-// import { BullModule } from '@nestjs/bull';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { AuthMiddleware, WorkspaceMiddleware } from './shared/auth.middleware';
 import { PrismaService } from './shared/prisma.service';
+import { VaultService } from './shared/vault.service';
+import { AppQueueModule } from './shared/queue.module';
 import { AuthService } from './modules/auth/auth.service';
 import { RegistrationService } from './modules/auth/registration.service';
 import { EmailValidationService } from './modules/auth/email-validation.service';
@@ -25,23 +29,70 @@ import { EmailController } from './modules/email/email.controller';
 import { EmailService } from './modules/email/email.service';
 import { MarketingEmailController } from './modules/email/marketing-email.controller';
 import { MarketingEmailService } from './modules/email/marketing-email.service';
-// import { EmailModule } from '@modules/email/email.module';
+import { HealthModule } from './modules/health/health.module';
+import { EmailEngineModule } from './modules/email-engine/email-engine.module';
+import { ScraperModule } from './modules/scraper/scraper.module';
+import { LinkedInModule } from './modules/linkedin/linkedin.module';
+import { AiModule } from './modules/ai/ai.module';
+import { PipelineModule } from './modules/pipeline/pipeline.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { ObservabilityModule } from './modules/observability/observability.module';
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 @Module({
   imports: [
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL || (isDev ? 'debug' : 'info'),
+        transport: isDev
+          ? {
+              target: 'pino-pretty',
+              options: { singleLine: true, translateTime: 'SYS:HH:MM:ss.l' },
+            }
+          : undefined,
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.body.password',
+            'req.body.apiKey',
+            'res.headers["set-cookie"]',
+          ],
+          remove: true,
+        },
+        serializers: {
+          req: (req) => ({
+            id: req.id,
+            method: req.method,
+            url: req.url,
+            remoteAddress: req.remoteAddress,
+          }),
+          res: (res) => ({ statusCode: res.statusCode }),
+        },
+      },
+    }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: parseInt(process.env.RATE_LIMIT_DEFAULT || '600', 10),
+      },
+    ]),
+    AppQueueModule.register(),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '1d' },
     }),
-    // BullModule.forRoot({
-    //   redis: {
-    //     host: process.env.REDIS_HOST || 'localhost',
-    //     port: parseInt(process.env.REDIS_PORT || '6379'),
-    //     db: parseInt(process.env.REDIS_DB || '0'),
-    //   },
-    // }),
-    // EmailModule,
+    HealthModule,
+    EmailEngineModule,
+    ScraperModule,
+    LinkedInModule,
+    AiModule,
+    PipelineModule,
+    ComplianceModule,
+    ObservabilityModule,
   ],
   controllers: [
     AuthController,
@@ -53,11 +104,16 @@ import { MarketingEmailService } from './modules/email/marketing-email.service';
     MarketingEmailController,
   ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     AuthService,
     RegistrationService,
     EmailValidationService,
     WorkspaceService,
     PrismaService,
+    VaultService,
     LeadService,
     LeadExtractionService,
     LeadImportService,
@@ -69,6 +125,7 @@ import { MarketingEmailService } from './modules/email/marketing-email.service';
     EmailService,
     MarketingEmailService,
   ],
+  exports: [VaultService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -39,10 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const bootstrap = async () => {
       const optimisticAuth = Boolean(getAccessToken() || getRefreshToken());
+      const currentPath = pathname ?? "";
       if (!optimisticAuth) {
         setLoading(false);
         setIsAuthenticated(false);
-        if (!PUBLIC_ROUTES.has(pathname)) router.replace("/login");
+        if (!PUBLIC_ROUTES.has(currentPath)) router.replace("/login");
         return;
       }
 
@@ -64,21 +65,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setWorkspace(resolvedWorkspace);
         setIsAuthenticated(true);
         const onboardingCompleted = Boolean(resolvedUser?.onboardingCompleted);
-        if (!onboardingCompleted && pathname !== ONBOARDING_ROUTE) {
+        if (!onboardingCompleted && currentPath !== ONBOARDING_ROUTE) {
           router.replace(ONBOARDING_ROUTE);
           return;
         }
-        if (onboardingCompleted && pathname === ONBOARDING_ROUTE) {
+        if (onboardingCompleted && currentPath === ONBOARDING_ROUTE) {
           router.replace("/dashboard");
           return;
         }
-        if (PUBLIC_ROUTES.has(pathname)) router.replace(onboardingCompleted ? "/dashboard" : ONBOARDING_ROUTE);
+        if (PUBLIC_ROUTES.has(currentPath)) router.replace(onboardingCompleted ? "/dashboard" : ONBOARDING_ROUTE);
       } catch {
         clearSession();
         setUser(null);
         setWorkspace(null);
         setIsAuthenticated(false);
-        if (!PUBLIC_ROUTES.has(pathname)) router.replace("/login");
+        if (!PUBLIC_ROUTES.has(currentPath)) router.replace("/login");
       } finally {
         setLoading(false);
       }

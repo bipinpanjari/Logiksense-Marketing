@@ -26,12 +26,22 @@ const initialState: FormState = {
   hourlySendLimit: 25,
 };
 
+interface DnsTile {
+  status: "idle" | "checking" | "ok" | "fail";
+  detail?: string;
+  recordName?: string;
+  policy?: string | null;
+}
+
 export function EmailSettingsForm() {
   const [form, setForm] = useState<FormState>(initialState);
   const [message, setMessage] = useState<string>("");
   const [testTo, setTestTo] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
+  const [dkimTile, setDkimTile] = useState<DnsTile>({ status: "idle" });
+  const [spfTile, setSpfTile] = useState<DnsTile>({ status: "idle" });
+  const [dmarcTile, setDmarcTile] = useState<DnsTile>({ status: "idle" });
 
   const domain = useMemo(() => form.sendingEmail.split("@")[1] || "", [form.sendingEmail]);
 
@@ -51,11 +61,47 @@ export function EmailSettingsForm() {
           hourlySendLimit: data.hourlySendLimit || 25,
         }));
         setHasPassword(Boolean(data.hasPassword));
+        if (typeof data.dkimValid === "boolean") {
+          setDkimTile({ status: data.dkimValid ? "ok" : "fail", detail: data.dkimValid ? "DKIM valid" : "DKIM record missing or invalid" });
+        }
+        if (typeof data.spfValid === "boolean") {
+          setSpfTile({ status: data.spfValid ? "ok" : "fail", detail: data.spfValid ? "SPF valid" : "SPF record missing or invalid" });
+        }
+        if (typeof data.dmarcValid === "boolean") {
+          setDmarcTile({
+            status: data.dmarcValid ? "ok" : "fail",
+            detail: data.dmarcValid ? "DMARC valid" : "DMARC record missing or invalid",
+            policy: data.dmarcPolicy ?? null,
+          });
+        }
       } catch {
         // keep empty defaults
       }
     })();
   }, []);
+
+  async function runCheck(kind: "dkim" | "spf" | "dmarc") {
+    if (!domain) {
+      setMessage("Set a sender email first to infer your domain.");
+      return;
+    }
+    const setTile = kind === "dkim" ? setDkimTile : kind === "spf" ? setSpfTile : setDmarcTile;
+    setTile({ status: "checking" });
+    try {
+      const path =
+        kind === "dkim" ? "/email/validate-dkim" : kind === "spf" ? "/email/validate-spf" : "/email/validate-dmarc";
+      const res = await authedFetch(path, { method: "POST", body: JSON.stringify({ domain }) });
+      const data = await res.json();
+      setTile({
+        status: data?.ok ? "ok" : "fail",
+        detail: data?.ok ? `${kind.toUpperCase()} looks good` : `${kind.toUpperCase()} not found or invalid`,
+        recordName: data?.recordName,
+        policy: data?.policy ?? null,
+      });
+    } catch (e: any) {
+      setTile({ status: "fail", detail: e?.message || "Check failed" });
+    }
+  }
 
   async function saveConfig() {
     setLoading(true);
@@ -171,6 +217,81 @@ export function EmailSettingsForm() {
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Deliverability DNS</CardTitle>
+          <CardDescription>
+            Check DKIM, SPF, and DMARC records for {domain || "your sending domain"}. Recipients without these will
+            route your mail to spam.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <DnsTileView
+            title="DKIM"
+            description="Signs outbound mail with your domain."
+            tile={dkimTile}
+            onCheck={() => runCheck("dkim")}
+            disabled={loading || !domain}
+          />
+          <DnsTileView
+            title="SPF"
+            description="Authorizes your SMTP provider to send on your behalf."
+            tile={spfTile}
+            onCheck={() => runCheck("spf")}
+            disabled={loading || !domain}
+          />
+          <DnsTileView
+            title="DMARC"
+            description="Tells mailbox providers what to do when DKIM/SPF fail."
+            tile={dmarcTile}
+            onCheck={() => runCheck("dmarc")}
+            disabled={loading || !domain}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DnsTileView({
+  title,
+  description,
+  tile,
+  onCheck,
+  disabled,
+}: {
+  title: string;
+  description: string;
+  tile: DnsTile;
+  onCheck: () => void;
+  disabled?: boolean;
+}) {
+  const badge =
+    tile.status === "ok"
+      ? "bg-emerald-500/15 text-emerald-700"
+      : tile.status === "fail"
+      ? "bg-rose-500/15 text-rose-700"
+      : tile.status === "checking"
+      ? "bg-amber-500/15 text-amber-700"
+      : "bg-muted text-muted-foreground";
+  const label =
+    tile.status === "ok" ? "Passing" : tile.status === "fail" ? "Missing" : tile.status === "checking" ? "Checking..." : "Unknown";
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold">{title}</div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge}`}>{label}</span>
+      </div>
+      {tile.detail ? <p className="mt-3 text-xs text-muted-foreground">{tile.detail}</p> : null}
+      {tile.recordName ? <p className="mt-1 text-xs font-mono text-muted-foreground">{tile.recordName}</p> : null}
+      {tile.policy ? <p className="mt-1 text-xs text-muted-foreground">Policy: {tile.policy}</p> : null}
+      <Button onClick={onCheck} disabled={disabled} className="mt-3 h-8 text-xs" variant="outline">
+        Re-check
+      </Button>
     </div>
   );
 }

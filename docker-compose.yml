@@ -1,0 +1,178 @@
+# Production docker-compose for LogikMarket.
+#
+# Services:
+#   caddy             -> reverse proxy, auto HTTPS, rate-limits the public surface
+#   api               -> NestJS HTTP API
+#   web               -> Next.js frontend
+#   email-worker      -> BullMQ consumer for email-send + sequence-tick queues
+#   scraper-worker    -> BullMQ consumer for scraper-job queue (Playwright)
+#   linkedin-worker   -> BullMQ consumer for linkedin-job queue (Playwright)
+#   postgres          -> primary datastore
+#   redis             -> queue + cache
+#   backup            -> nightly pg_dump to DO Spaces (or any S3-compatible bucket)
+#
+# Local dev keeps using `npm run start:dev` / `npm run dev` and the bare
+# postgres+redis containers documented in README; this compose file is
+# intended for the DigitalOcean droplet deployment.
+
+x-worker-env: &worker-env
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${JWT_SECRET}
+  VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY}
+  SMTP_ENCRYPTION_KEY: ${SMTP_ENCRYPTION_KEY}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
+  FRONTEND_URL: ${FRONTEND_URL:-https://app.example.com}
+  SCRAPER_KILL_SWITCH: ${SCRAPER_KILL_SWITCH:-false}
+  LINKEDIN_KILL_SWITCH: ${LINKEDIN_KILL_SWITCH:-false}
+  PLATFORM_OPENAI_KEY: ${PLATFORM_OPENAI_KEY:-}
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+
+  api:
+    build:
+      context: ./backend
+      target: api
+    restart: unless-stopped
+    environment:
+      <<: *worker-env
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/}
+    depends_on:
+      - api
+
+  email-worker:
+    build:
+      context: ./backend
+      target: email-worker
+    restart: unless-stopped
+    environment:
+      <<: *worker-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  scraper-worker:
+    build:
+      context: ./backend
+      target: scraper-worker
+    restart: unless-stopped
+    environment:
+      <<: *worker-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - scraper_data:/app/.scraper-data
+
+  linkedin-worker:
+    build:
+      context: ./backend
+      target: linkedin-worker
+    restart: unless-stopped
+    environment:
+      <<: *worker-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - linkedin_data:/app/.linkedin-data
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-logiksense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logiksense}
+      POSTGRES_DB: ${POSTGRES_DB:-logiksense_marketing}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-logiksense}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backup:
+    image: alpine:3.20
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-logiksense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logiksense}
+      POSTGRES_DB: ${POSTGRES_DB:-logiksense_marketing}
+      DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT:-}
+      DO_SPACES_BUCKET: ${DO_SPACES_BUCKET:-}
+      DO_SPACES_ACCESS_KEY: ${DO_SPACES_ACCESS_KEY:-}
+      DO_SPACES_SECRET_KEY: ${DO_SPACES_SECRET_KEY:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache postgresql16-client aws-cli coreutils tzdata bash && chmod +x /usr/local/bin/backup.sh && crond -f -L /dev/stdout & echo '0 2 * * * /usr/local/bin/backup.sh' | crontab - && wait"]
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
+  scraper_data:
+  linkedin_data:

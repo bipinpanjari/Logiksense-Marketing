@@ -67,6 +67,13 @@ export class AuthMiddleware implements NestMiddleware {
       '/api/auth/refresh',
       '/api/auth/registration',
       '/api/health',
+      '/api/webhooks/contact-form/',
+      '/api/webhooks/test/',
+      '/api/webhooks/bounces',
+      '/api/track/',
+      '/api/unsubscribe/',
+      '/api/inbound/',
+      '/metrics',
     ];
     return publicRoutes.some(route => path.startsWith(route));
   }

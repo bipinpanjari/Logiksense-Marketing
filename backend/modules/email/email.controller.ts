@@ -55,5 +55,10 @@ export class EmailController {
   async validateSpf(@Body() body: { domain: string }) {
     return this.emailService.validateSpf(body?.domain);
   }
+
+  @Post('validate-dmarc')
+  async validateDmarc(@Body() body: { domain: string }) {
+    return this.emailService.validateDmarc(body?.domain);
+  }
 }
 

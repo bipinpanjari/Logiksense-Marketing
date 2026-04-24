@@ -183,6 +183,63 @@ export class MarketingEmailService {
     }));
   }
 
+  async getSequence(workspaceId: string, sequenceId: string) {
+    const db = getDatabase();
+    const result = await db.query(
+      `SELECT id, name, description, status, steps, created_at, updated_at
+       FROM email_sequences
+       WHERE id = $1 AND workspace_id = $2`,
+      [sequenceId, workspaceId],
+    );
+    if (result.rows.length === 0) {
+      throw new BadRequestException('Sequence not found');
+    }
+    return result.rows[0];
+  }
+
+  async updateSequence(
+    workspaceId: string,
+    sequenceId: string,
+    payload: { name?: string; description?: string; status?: string; steps?: SequenceStep[] }
+  ) {
+    const db = getDatabase();
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+    if (typeof payload.name === 'string') {
+      fields.push(`name = $${idx++}`);
+      values.push(payload.name.trim());
+    }
+    if (typeof payload.description === 'string') {
+      fields.push(`description = $${idx++}`);
+      values.push(payload.description);
+    }
+    if (typeof payload.status === 'string') {
+      fields.push(`status = $${idx++}`);
+      values.push(payload.status.trim().toLowerCase());
+    }
+    if (Array.isArray(payload.steps)) {
+      fields.push(`steps = $${idx++}`);
+      values.push(JSON.stringify(payload.steps));
+    }
+    if (fields.length === 0) {
+      throw new BadRequestException('No fields provided for update');
+    }
+    values.push(sequenceId);
+    values.push(workspaceId);
+    const result = await db.query(
+      `UPDATE email_sequences
+       SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${idx++} AND workspace_id = $${idx}
+       RETURNING id, name, description, status, steps, created_at, updated_at`,
+      values,
+    );
+    if (result.rows.length === 0) {
+      throw new BadRequestException('Sequence not found');
+    }
+    return result.rows[0];
+  }
+
   async createSequence(
     workspaceId: string,
     customerId: string,

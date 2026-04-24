@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Mail, Settings, Users, LogOut, CalendarDays, FileText, Workflow, Send, UserCircle2, ChevronUp, ChevronDown } from "lucide-react";
+import { BarChart3, Mail, Settings, Users, LogOut, CalendarDays, FileText, Workflow, Send, UserCircle2, ChevronUp, ChevronDown, Globe, History, Linkedin, Sparkles, Activity, Inbox, KanbanSquare, LineChart, Shield, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ const navGroups = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
       { href: "/leads", label: "Leads", icon: Users },
+      { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+      { href: "/inbox", label: "Inbox", icon: Inbox },
+      { href: "/analytics", label: "Analytics", icon: LineChart },
     ],
   },
   {
@@ -27,7 +30,43 @@ const navGroups = [
       { href: "/email/settings", label: "SMTP Settings", icon: Settings },
     ],
   },
+  {
+    label: "Scraper",
+    items: [
+      { href: "/scraper", label: "Search Profiles", icon: Globe },
+      { href: "/scraper/jobs", label: "Jobs", icon: History },
+    ],
+  },
+  {
+    label: "LinkedIn",
+    items: [
+      { href: "/linkedin", label: "Campaigns", icon: Linkedin },
+      { href: "/linkedin/accounts", label: "Accounts", icon: UserCircle2 },
+    ],
+  },
+  {
+    label: "AI",
+    items: [
+      { href: "/ai/settings", label: "Settings", icon: Sparkles },
+      { href: "/ai/usage", label: "Usage", icon: Activity },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { href: "/audit", label: "Audit log", icon: ScrollText },
+      { href: "/compliance", label: "Privacy", icon: Shield },
+    ],
+  },
 ];
+
+/** One active link per section: paths like `/scraper` must not also match `/scraper/jobs` (use longest match). */
+function isNavItemActive(pathname: string, itemHref: string, siblings: string[]) {
+  const matches = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  if (!matches(itemHref)) return false;
+  const best = siblings.filter(matches).sort((a, b) => b.length - a.length)[0];
+  return best === itemHref;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -66,7 +105,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</p>
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active = activePath.startsWith(item.href);
+                  const siblingHrefs = group.items.map((i) => i.href);
+                  const active = isNavItemActive(activePath, item.href, siblingHrefs);
                   return (
                     <Link
                       key={item.href}

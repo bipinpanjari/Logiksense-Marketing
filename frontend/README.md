@@ -27,5 +27,5 @@
 - Tailwind semantic mapping is in `tailwind.config.ts`.
 - Auth/session logic is centralized in `components/providers/auth-provider.tsx`.
 - API auth fetching is centralized in `lib/api-client.ts`.
-- Some advanced legacy pages are temporarily bridged from `src/pages/*` and should be incrementally rewritten as pure Next components.
+- All legacy `src/pages/*` files have been removed - every route is now a native Next.js App Router page under `app/`.
 

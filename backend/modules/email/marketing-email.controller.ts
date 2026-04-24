@@ -83,5 +83,23 @@ export class MarketingEmailController {
     if (!workspaceId || !customerId) throw new UnauthorizedException('Not authenticated');
     return this.marketingEmailService.createSequence(workspaceId, customerId, body);
   }
+
+  @Get('sequences/:id')
+  async getSequence(@Request() req: RequestWithUser, @Param('id') id: string) {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) throw new UnauthorizedException('Not authenticated');
+    return this.marketingEmailService.getSequence(workspaceId, id);
+  }
+
+  @Patch('sequences/:id')
+  async updateSequence(
+    @Request() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() body: { name?: string; description?: string; status?: string; steps?: Array<{ id: number | string; name: string; delayHours: number; subject?: string }> }
+  ) {
+    const workspaceId = req.user?.workspaceId;
+    if (!workspaceId) throw new UnauthorizedException('Not authenticated');
+    return this.marketingEmailService.updateSequence(workspaceId, id, body);
+  }
 }
 

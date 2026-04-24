@@ -19,8 +19,10 @@ export class EmailValidationService {
 
       // Optional: Send real email if SMTP is configured
       if (process.env.SMTP_HOST) {
+        const smtpHost =
+          process.env.SMTP_HOST === 'localhost' ? '127.0.0.1' : process.env.SMTP_HOST;
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
+          host: smtpHost,
           port: parseInt(process.env.SMTP_PORT || '587'),
           secure: process.env.SMTP_SECURE === 'true',
           auth: {
@@ -148,40 +150,91 @@ export class EmailValidationService {
   }
 
   /**
+   * Test DMARC configuration for outbound email
+   * Checks DNS TXT records at _dmarc.<domain>
+   */
+  async validateDMARC(domain: string): Promise<{
+    valid: boolean;
+    record?: string;
+    policy?: 'none' | 'quarantine' | 'reject';
+    error?: string;
+  }> {
+    try {
+      const dmarcDomain = `_dmarc.${domain}`;
+      const txtRecords = await resolveTxt(dmarcDomain);
+
+      if (txtRecords && txtRecords.length > 0) {
+        const record = txtRecords
+          .map((r) => r.join(''))
+          .find((r) => r.startsWith('v=DMARC1'));
+
+        if (record) {
+          const policyMatch = /p=(none|quarantine|reject)/i.exec(record);
+          const policy = policyMatch
+            ? (policyMatch[1].toLowerCase() as 'none' | 'quarantine' | 'reject')
+            : undefined;
+          return { valid: true, record, policy };
+        }
+      }
+
+      return {
+        valid: false,
+        error: 'DMARC record not found. Add a TXT record at _dmarc.' + domain,
+      };
+    } catch (error) {
+      console.error(`DMARC validation failed for ${domain}:`, error);
+      return {
+        valid: false,
+        error: 'Failed to query DMARC record. Make sure domain is correct.',
+      };
+    }
+  }
+
+  /**
    * Comprehensive email validation including DNS checks
    */
   async validateOutboundEmail(email: string, domain: string): Promise<{
     emailValid: boolean;
     dkimValid: boolean;
     spfValid: boolean;
+    dmarcValid: boolean;
+    dmarcPolicy?: 'none' | 'quarantine' | 'reject';
     errors: string[];
     warnings: string[];
   }> {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Step 1: Validate email domain
     const emailDomainValid = await this.validateEmailDomain(email);
     if (!emailDomainValid) {
       errors.push('Email domain has no MX records');
     }
 
-    // Step 2: Check DKIM
     const dkimResult = await this.validateDKIM(domain);
     if (!dkimResult.valid) {
       warnings.push(`DKIM: ${dkimResult.error}`);
     }
 
-    // Step 3: Check SPF
     const spfResult = await this.validateSPF(domain);
     if (!spfResult.valid) {
       warnings.push(`SPF: ${spfResult.error}`);
+    }
+
+    const dmarcResult = await this.validateDMARC(domain);
+    if (!dmarcResult.valid) {
+      warnings.push(`DMARC: ${dmarcResult.error}`);
+    } else if (dmarcResult.policy === 'none') {
+      warnings.push(
+        'DMARC policy is set to "none" (monitor-only). Consider upgrading to "quarantine" or "reject" once confident.',
+      );
     }
 
     return {
       emailValid: emailDomainValid,
       dkimValid: dkimResult.valid,
       spfValid: spfResult.valid,
+      dmarcValid: dmarcResult.valid,
+      dmarcPolicy: dmarcResult.policy,
       errors,
       warnings,
     };

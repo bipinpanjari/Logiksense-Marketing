@@ -60,11 +60,23 @@ export default function SequencesPage() {
               <tbody>
                 {sequences.map((seq) => (
                   <tr key={seq.id} className="border-b">
-                    <td className="px-3 py-2 font-medium">{seq.name}</td>
+                    <td className="px-3 py-2 font-medium">
+                      <Link href={`/email/sequences/${seq.id}`} className="underline-offset-4 hover:underline">
+                        {seq.name}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2">
                       <Badge variant={seq.status === "active" ? "success" : "secondary"}>{seq.status}</Badge>
                     </td>
-                    <td className="px-3 py-2">{Array.isArray(seq.steps) ? seq.steps.length : 0}</td>
+                    <td className="px-3 py-2">
+                      {Array.isArray(seq.steps)
+                        ? seq.steps.length
+                        : typeof seq.steps === "string"
+                        ? (() => {
+                            try { return JSON.parse(seq.steps).length ?? 0; } catch { return 0; }
+                          })()
+                        : 0}
+                    </td>
                     <td className="px-3 py-2">{seq.active_leads ?? 0}</td>
                   </tr>
                 ))}

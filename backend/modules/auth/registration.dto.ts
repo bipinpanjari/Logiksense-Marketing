@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateRegistrationSessionDto {
   @IsString()
@@ -110,4 +110,14 @@ export class CompleteOnboardingDto {
   @IsOptional()
   @IsString()
   dkimSelector?: string;
+
+  /**
+   * When true, onboarding completes even if MX/DNS checks fail (e.g. local dev, DNS not propagated).
+   * In production, the server also requires ONBOARDING_ALLOW_CLIENT_DNS_SKIP=true.
+   * Alternatively set ONBOARDING_SKIP_DNS_VALIDATION=true in env to skip for all users.
+   */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1)
+  @IsBoolean()
+  skipDnsValidation?: boolean;
 }

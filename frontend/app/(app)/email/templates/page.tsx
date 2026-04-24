@@ -14,6 +14,7 @@ export default function EmailTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   async function loadTemplates() {
     setLoading(true);
@@ -113,13 +114,61 @@ export default function EmailTemplatesPage() {
               <Button onClick={onSaveTemplate} disabled={saving}>
                 {saving ? "Saving..." : "Save Template"}
               </Button>
-              <Button variant="outline">Preview</Button>
+              <Button variant="outline" onClick={() => setPreviewOpen((v) => !v)}>
+                {previewOpen ? "Hide Preview" : "Preview"}
+              </Button>
             </div>
             {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+            {previewOpen ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rendered preview</label>
+                <div className="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                  Subject: <span className="font-mono text-foreground">{renderVars(subject)}</span>
+                </div>
+                <iframe
+                  title="Template preview"
+                  className="min-h-[360px] w-full rounded-md border border-border bg-white"
+                  srcDoc={wrapHtml(renderVars(body))}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
     </div>
   );
+}
+
+function renderVars(input: string): string {
+  const sample: Record<string, string> = {
+    firstName: "Alex",
+    lastName: "Rivera",
+    companyName: "Acme, Inc.",
+    company: "Acme, Inc.",
+    email: "alex@acme.com",
+    jobTitle: "Head of Operations",
+    department: "its ops team",
+  };
+  return input.replace(/{{\s*([\w.]+)\s*}}/g, (_, key) => sample[key] ?? `{{${key}}}`);
+}
+
+function wrapHtml(body: string): string {
+  const looksLikeHtml = /<\w+[\s>]/.test(body);
+  const content = looksLikeHtml
+    ? body
+    : `<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;">${escapeHtml(body)}</pre>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color:#111; padding:16px; }
+  </style></head><body>${content}</body></html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]!));
 }
 

@@ -125,9 +125,15 @@ export default function EmailCampaignsPage() {
               <tbody>
                 {campaigns.map((campaign) => (
                   <tr key={campaign.id} className="border-b">
-                    <td className="px-3 py-2 font-medium">{campaign.name}</td>
+                    <td className="px-3 py-2 font-medium">
+                      <Link href={`/email/campaigns/${campaign.id}`} className="underline-offset-4 hover:underline">
+                        {campaign.name}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2">
-                      <Badge variant={campaign.status === "active" ? "success" : "secondary"}>{campaign.status}</Badge>
+                      <Badge variant={campaign.status === "active" || campaign.status === "running" ? "success" : "secondary"}>
+                        {campaign.status}
+                      </Badge>
                     </td>
                     <td className="px-3 py-2">{campaign.audience.toLocaleString()}</td>
                     <td className="px-3 py-2">{campaign.scheduledAt}</td>

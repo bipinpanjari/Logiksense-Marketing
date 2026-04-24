@@ -22,202 +22,195 @@ export interface GenerateWebhookResponse {
 
 @Injectable()
 export class WebhookService {
-  async generateWebhookUrl(workspaceId: string, workspaceName: string): Promise<GenerateWebhookResponse> {
+  async generateWebhookUrl(
+    workspaceId: string,
+    customerId: string,
+    workspaceName: string,
+  ): Promise<GenerateWebhookResponse> {
     const db = getDatabase();
     const webhookId = uuid();
     const apiKey = this.generateApiKey();
+    const keyHash = this.hashApiKey(apiKey);
 
-    try {
-      const result = await db.query(
-        `INSERT INTO api_keys (id, workspace_id, key_hash, name, is_active)
-         VALUES ($1, $2, $3, $4, true)
-         RETURNING *`,
-        [
-          uuid(),
-          workspaceId,
-          crypto.createHash('sha256').update(apiKey).digest('hex'),
-          `Contact Form Webhook - ${workspaceName}`,
-        ]
-      );
+    await db.query(
+      `INSERT INTO api_keys (id, workspace_id, customer_id, key_hash, name, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)`,
+      [webhookId, workspaceId, customerId, keyHash, `Contact Form Webhook - ${workspaceName}`],
+    );
 
-      return {
-        webhookUrl: `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/contact-form/${webhookId}`,
-        webhookId,
-        apiKey,
-        createdAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error('Generate webhook error:', error);
-      throw error;
-    }
+    return {
+      webhookUrl: `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/contact-form/${webhookId}`,
+      webhookId,
+      apiKey,
+      createdAt: new Date().toISOString(),
+    };
   }
 
   async handleContactFormSubmission(
     webhookId: string,
     apiKey: string,
-    leadData: WebhookLead
+    leadData: WebhookLead,
   ) {
     const db = getDatabase();
 
-    try {
-      // Validate API key
-      const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
-      const keyResult = await db.query(
-        `SELECT workspace_id FROM api_keys 
-         WHERE id = (SELECT workspace_id FROM api_keys WHERE key_hash = $1)`,
-        [keyHash]
-      );
+    const keyHash = this.hashApiKey(apiKey);
+    const webhookResult = await db.query(
+      `SELECT workspace_id, key_hash, is_active
+       FROM api_keys
+       WHERE id = $1`,
+      [webhookId],
+    );
 
-      // Get workspace from webhook ID - simpler approach
-      const webhookResult = await db.query(
-        `SELECT workspace_id FROM api_keys WHERE id = $1 AND is_active = true`,
-        [webhookId]
-      );
+    if (webhookResult.rows.length === 0) {
+      throw new UnauthorizedException('Invalid webhook');
+    }
+    const row = webhookResult.rows[0];
+    if (!row.is_active) {
+      throw new UnauthorizedException('Webhook revoked');
+    }
+    if (!crypto.timingSafeEqual(Buffer.from(row.key_hash), Buffer.from(keyHash))) {
+      throw new UnauthorizedException('Invalid API key');
+    }
 
-      if (webhookResult.rows.length === 0) {
-        throw new UnauthorizedException('Invalid webhook');
-      }
+    const workspaceId = row.workspace_id;
 
-      const workspaceId = webhookResult.rows[0].workspace_id;
+    if (!leadData.email || !this.isValidEmail(leadData.email)) {
+      throw new BadRequestException('Invalid email address');
+    }
 
-      // Validate email
-      if (!leadData.email || !this.isValidEmail(leadData.email)) {
-        throw new BadRequestException('Invalid email address');
-      }
+    await db.query(
+      `UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [webhookId],
+    );
 
-      // Check for duplicates
-      const existing = await db.query(
-        'SELECT id FROM leads WHERE workspace_id = $1 AND email = $2',
-        [workspaceId, leadData.email]
-      );
+    const existing = await db.query(
+      'SELECT id FROM leads WHERE workspace_id = $1 AND email = $2',
+      [workspaceId, leadData.email],
+    );
 
-      const leadId = uuid();
-
-      if (existing.rows.length > 0) {
-        // Update existing lead with form submission data
-        await db.query(
-          `UPDATE leads SET custom_fields = jsonb_set(custom_fields, '{last_form_submission}', to_jsonb($1::text))
-           WHERE id = $2`,
-          [new Date().toISOString(), existing.rows[0].id]
-        );
-
-        return {
-          success: true,
-          leadId: existing.rows[0].id,
-          isNew: false,
-          message: 'Lead updated with new form submission',
-        };
-      }
-
-      // Create new lead
-      const result = await db.query(
-        `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company, source, custom_fields)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'contact_form', $8)
-         RETURNING id`,
-        [
-          leadId,
-          workspaceId,
-          leadData.firstName || '',
-          leadData.lastName || '',
-          leadData.email,
-          leadData.phone || null,
-          leadData.company || null,
-          JSON.stringify({
-            formSubmission: {
-              message: leadData.message,
-              timestamp: new Date().toISOString(),
-              ...leadData.customFields,
-            },
-          }),
-        ]
-      );
-
-      // Create contact record
+    if (existing.rows.length > 0) {
+      const leadId = existing.rows[0].id;
       await db.query(
-        `INSERT INTO contacts (id, workspace_id, lead_id, notes)
-         VALUES ($1, $2, $3, $4)`,
-        [uuid(), workspaceId, leadId, `Form submission: ${leadData.message}`]
+        `UPDATE leads
+         SET custom_fields = jsonb_set(
+               COALESCE(custom_fields, '{}'::jsonb),
+               '{last_form_submission}',
+               to_jsonb($1::text)
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [new Date().toISOString(), leadId],
       );
-
-      // Log activity
-      await db.query(
-        `INSERT INTO activity_logs (id, workspace_id, entity_type, entity_id, action, details)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          uuid(),
-          workspaceId,
-          'lead',
-          leadId,
-          'created',
-          JSON.stringify({ source: 'contact_form', email: leadData.email }),
-        ]
-      );
-
+      await this.logActivity(db, workspaceId, leadId, 'contact_form_duplicate', leadData);
       return {
         success: true,
         leadId,
-        isNew: true,
-        message: 'Lead created from contact form',
+        isNew: false,
+        message: 'Lead updated with new form submission',
       };
-    } catch (error) {
-      console.error('Handle webhook submission error:', error);
-      throw error;
     }
+
+    const leadId = uuid();
+    await db.query(
+      `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company, source, custom_fields)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'contact_form', $8)`,
+      [
+        leadId,
+        workspaceId,
+        leadData.firstName || '',
+        leadData.lastName || '',
+        leadData.email,
+        leadData.phone || null,
+        leadData.company || null,
+        JSON.stringify({
+          formSubmission: {
+            message: leadData.message,
+            timestamp: new Date().toISOString(),
+            ...leadData.customFields,
+          },
+        }),
+      ],
+    );
+
+    await db.query(
+      `INSERT INTO contacts (id, workspace_id, lead_id, notes)
+       VALUES ($1, $2, $3, $4)`,
+      [uuid(), workspaceId, leadId, `Form submission: ${leadData.message ?? ''}`],
+    );
+
+    await this.logActivity(db, workspaceId, leadId, 'created', {
+      source: 'contact_form',
+      email: leadData.email,
+    });
+
+    return {
+      success: true,
+      leadId,
+      isNew: true,
+      message: 'Lead created from contact form',
+    };
   }
 
   async revokeWebhook(workspaceId: string, webhookId: string) {
     const db = getDatabase();
-
-    try {
-      const result = await db.query(
-        `UPDATE api_keys SET is_active = false
-         WHERE id = $1 AND workspace_id = $2
-         RETURNING id`,
-        [webhookId, workspaceId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new BadRequestException('Webhook not found');
-      }
-
-      return { success: true, message: 'Webhook revoked' };
-    } catch (error) {
-      console.error('Revoke webhook error:', error);
-      throw error;
+    const result = await db.query(
+      `UPDATE api_keys SET is_active = false
+       WHERE id = $1 AND workspace_id = $2
+       RETURNING id`,
+      [webhookId, workspaceId],
+    );
+    if (result.rows.length === 0) {
+      throw new BadRequestException('Webhook not found');
     }
+    return { success: true, message: 'Webhook revoked' };
   }
 
   async getWebhooks(workspaceId: string) {
     const db = getDatabase();
-
-    try {
-      const result = await db.query(
-        `SELECT id, name, is_active, created_at, last_used_at
-         FROM api_keys
-         WHERE workspace_id = $1 AND name LIKE 'Contact Form%'
-         ORDER BY created_at DESC`,
-        [workspaceId]
-      );
-
-      return result.rows.map(row => ({
-        webhookId: row.id,
-        name: row.name,
-        isActive: row.is_active,
-        createdAt: row.created_at,
-        lastUsed: row.last_used_at,
-      }));
-    } catch (error) {
-      console.error('Get webhooks error:', error);
-      throw error;
-    }
+    const result = await db.query(
+      `SELECT id, name, is_active, created_at, last_used_at
+       FROM api_keys
+       WHERE workspace_id = $1 AND name LIKE 'Contact Form%'
+       ORDER BY created_at DESC`,
+      [workspaceId],
+    );
+    return result.rows.map((r) => ({
+      webhookId: r.id,
+      name: r.name,
+      isActive: r.is_active,
+      createdAt: r.created_at,
+      lastUsed: r.last_used_at,
+    }));
   }
 
   private generateApiKey(): string {
     return crypto.randomBytes(32).toString('hex');
   }
 
+  private hashApiKey(apiKey: string): string {
+    return crypto.createHash('sha256').update(apiKey).digest('hex');
+  }
+
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  private async logActivity(
+    db: ReturnType<typeof getDatabase>,
+    workspaceId: string,
+    leadId: string,
+    action: string,
+    details: Record<string, any>,
+  ) {
+    try {
+      await db.query(
+        `INSERT INTO activity_logs (id, workspace_id, entity_type, entity_id, action, details)
+         VALUES ($1, $2, 'lead', $3, $4, $5)`,
+        [uuid(), workspaceId, leadId, action, JSON.stringify(details)],
+      );
+    } catch {
+      // non-fatal
+    }
   }
 }

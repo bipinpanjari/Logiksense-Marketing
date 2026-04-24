@@ -58,6 +58,66 @@ export async function listSequences() {
   return res.json();
 }
 
+export async function getSequence(id: string) {
+  const res = await authedFetch(`/marketing-email/sequences/${id}`);
+  return res.json();
+}
+
+export async function updateSequence(
+  id: string,
+  payload: {
+    name?: string;
+    description?: string;
+    status?: string;
+    steps?: Array<{ id: number | string; name: string; delayHours: number; subject?: string }>;
+  }
+) {
+  const res = await authedFetch(`/marketing-email/sequences/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function getCampaignDetail(id: string) {
+  const res = await authedFetch(`/email-engine/campaigns/${id}`);
+  return res.json();
+}
+
+export async function launchCampaignAction(id: string) {
+  const res = await authedFetch(`/email-engine/campaigns/${id}/launch`, { method: "POST" });
+  return res.json();
+}
+
+export async function pauseCampaignAction(id: string) {
+  const res = await authedFetch(`/email-engine/campaigns/${id}/pause`, { method: "POST" });
+  return res.json();
+}
+
+export async function previewTemplate(id: string) {
+  const res = await authedFetch(`/email-engine/templates/${id}/preview`);
+  return res.json();
+}
+
+export async function enrollLeadInSequence(sequenceId: string, leadId: string) {
+  const res = await authedFetch(`/email-engine/sequences/${sequenceId}/enroll/${leadId}`, { method: "POST" });
+  return res.json();
+}
+
+export async function testSendEmail(payload: {
+  leadId: string;
+  templateId?: string;
+  subject?: string;
+  html?: string;
+  text?: string;
+}) {
+  const res = await authedFetch(`/email-engine/test-send`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
 export async function createSequence(payload: {
   name: string;
   description?: string;

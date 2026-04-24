@@ -36,6 +36,10 @@ export interface EmailConfigPublic {
   createdAt: string;
   updatedAt: string;
   hasPassword: boolean;
+  dkimValid: boolean;
+  spfValid: boolean;
+  dmarcValid: boolean;
+  dmarcPolicy: string | null;
 }
 
 @Injectable()
@@ -61,6 +65,10 @@ export class EmailService {
          hourly_send_limit,
          is_active,
          last_validated,
+         dkim_valid,
+         spf_valid,
+         dmarc_valid,
+         dmarc_policy,
          created_at,
          updated_at
        FROM email_configs
@@ -276,6 +284,20 @@ export class EmailService {
     };
   }
 
+  async validateDmarc(domain: string) {
+    const cleanDomain = (domain || '').trim().toLowerCase();
+    if (!cleanDomain) {
+      throw new BadRequestException('Invalid domain');
+    }
+    const result = await this.emailValidation.validateDMARC(cleanDomain);
+    return {
+      ok: result.valid,
+      recordName: `_dmarc.${cleanDomain}`,
+      policy: (result as any).policy ?? null,
+      details: result,
+    };
+  }
+
   private async getRawConfigById(id: string, customerId: string): Promise<any> {
     const db = getDatabase();
     const result = await db.query(`SELECT * FROM email_configs WHERE id = $1 AND customer_id = $2`, [id, customerId]);
@@ -290,8 +312,15 @@ export class EmailService {
     const secure = port === 465;
     const hasAuth = Boolean(raw.smtp_user) && Boolean(raw.smtp_password_encrypted);
 
+    const hostRaw = typeof raw.smtp_host === 'string' ? raw.smtp_host.trim() : '';
+    if (!hostRaw) {
+      throw new BadRequestException(
+        'SMTP host is not configured for this workspace. Save email settings with a real SMTP hostname (e.g. smtp.sendgrid.net) before testing or sending.',
+      );
+    }
+    const smtpHost = hostRaw === 'localhost' ? '127.0.0.1' : hostRaw;
     return nodemailer.createTransport({
-      host: raw.smtp_host,
+      host: smtpHost,
       port,
       secure,
       auth: hasAuth
@@ -322,6 +351,10 @@ export class EmailService {
       createdAt: new Date(row.created_at).toISOString(),
       updatedAt: new Date(row.updated_at).toISOString(),
       hasPassword: Boolean(row.smtp_password_encrypted),
+      dkimValid: Boolean(row.dkim_valid),
+      spfValid: Boolean(row.spf_valid),
+      dmarcValid: Boolean(row.dmarc_valid),
+      dmarcPolicy: row.dmarc_policy ?? null,
     };
   }
 }
