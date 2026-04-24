@@ -19,7 +19,7 @@ export class LinkedInLoginService {
     const db = getDatabase();
     const res = await db.query(
       `SELECT id, email, status, password_vault_ref, session_vault_ref, workspace_id
-       FROM linkedin_accounts WHERE id = $1`,
+       FROM linkedin_accounts WHERE id = $1::uuid`,
       [accountId],
     );
     const row = res.rows[0];
@@ -100,7 +100,7 @@ export class LinkedInLoginService {
         value: JSON.stringify(cookies),
       });
       await db.query(
-        `UPDATE linkedin_accounts SET session_vault_ref = $1, last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE linkedin_accounts SET session_vault_ref = $1, last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2::uuid`,
         [refKey, accountId],
       );
     } catch (err) {
@@ -127,7 +127,7 @@ export class LinkedInLoginService {
   private async markAccount(accountId: string, status: string, error?: string) {
     const db = getDatabase();
     await db.query(
-      `UPDATE linkedin_accounts SET status = $1, last_error = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+      `UPDATE linkedin_accounts SET status = $1, last_error = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3::uuid`,
       [status, error || null, accountId],
     );
   }

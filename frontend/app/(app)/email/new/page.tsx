@@ -1,59 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { createSequence } from "@/lib/marketing-email";
-
-interface Step {
-  id: number;
-  name: string;
-  delayHours: number;
-  subject: string;
-}
+import { SequenceBasicsCard } from "@/components/email/sequence-basics-card";
+import { SequenceStepsPanel, type SequenceStep } from "@/components/email/sequence-steps-panel";
 
 export default function NewSequencePage() {
   const router = useRouter();
+  const firstStepId = useRef(`step-${Date.now()}`).current;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [steps, setSteps] = useState<Step[]>([{ id: 1, name: "Step 1", delayHours: 0, subject: "" }]);
+  const [status, setStatus] = useState("draft");
+  const [steps, setSteps] = useState<SequenceStep[]>([
+    { id: firstStepId, name: "Step 1", delayHours: 0, subject: "" },
+  ]);
+  const [selectedStepId, setSelectedStepId] = useState<number | string | null>(firstStepId);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   function addStep() {
+    const newId = `step-${Date.now()}`;
     setSteps((prev) => [
       ...prev,
-      { id: Date.now(), name: `Step ${prev.length + 1}`, delayHours: 24, subject: "" },
+      { id: newId, name: `Step ${prev.length + 1}`, delayHours: prev.length === 0 ? 0 : 24, subject: "" },
     ]);
+    setSelectedStepId(newId);
   }
 
-  function updateStep(id: number, field: keyof Step, value: string | number) {
-    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, [field]: value } : step)));
+  function updateStep(stepId: number | string, field: keyof SequenceStep, value: string | number) {
+    setSteps((prev) => prev.map((s) => (s.id === stepId ? { ...s, [field]: value } : s)));
   }
 
-  async function onCreateSequence() {
+  function removeStep(stepId: number | string) {
+    setSteps((prev) => {
+      const next = prev.filter((s) => s.id !== stepId);
+      if (selectedStepId === stepId) {
+        setSelectedStepId(next[0]?.id ?? null);
+      }
+      return next;
+    });
+  }
+
+  function moveStep(stepId: number | string, direction: "up" | "down") {
+    setSteps((prev) => {
+      const idx = prev.findIndex((s) => s.id === stepId);
+      if (idx < 0) return prev;
+      const j = direction === "up" ? idx - 1 : idx + 1;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  }
+
+  async function onCreate() {
     if (!name.trim()) {
-      setMessage("Sequence name is required");
+      setMessage("Give your sequence a name");
+      return;
+    }
+    if (steps.length === 0) {
+      setMessage("Add at least one step");
       return;
     }
     setSaving(true);
     setMessage("");
     try {
-      await createSequence({
+      const created = await createSequence({
         name: name.trim(),
         description: description.trim(),
-        status: "draft",
+        status,
         steps: steps.map((s) => ({
           id: s.id,
           name: s.name,
-          delayHours: Number(s.delayHours || 0),
+          delayHours: Number(s.delayHours) || 0,
           subject: s.subject,
         })),
       });
-      setMessage("Sequence created");
-      router.push("/email/sequences");
+      const newId = created?.id;
+      if (!newId) {
+        setMessage("Created but no id returned — check the sequence list");
+        router.push("/email/sequences");
+        return;
+      }
+      router.push(`/email/sequences/${newId}`);
     } catch (e: any) {
       setMessage(e?.message || "Failed to create sequence");
     } finally {
@@ -63,60 +95,51 @@ export default function NewSequencePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Build New Sequence</h1>
-        <p className="text-sm text-muted-foreground">Design multi-step sequence logic with consistent timing and messaging.</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link href="/email/sequences" className="underline-offset-4 hover:underline">
+              Sequences
+            </Link>
+            <span>/</span>
+            <span>New</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">New sequence</h1>
+          <p className="text-sm text-muted-foreground">
+            Ordered email touches with wait times between sends — edit the chain on the left, details on the right.
+          </p>
+        </div>
+        <Button onClick={onCreate} disabled={saving || !name.trim() || steps.length === 0} size="default">
+          {saving ? "Creating…" : "Create sequence"}
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sequence Basics</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Sequence Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Founder outbound sequence" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              className="min-h-[100px] w-full rounded-md border border-input bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <SequenceBasicsCard
+        name={name}
+        description={description}
+        status={status}
+        onName={setName}
+        onDescription={setDescription}
+        onStatus={setStatus}
+        statusOptions={[
+          { value: "draft", label: "Draft" },
+          { value: "active", label: "Active" },
+          { value: "paused", label: "Paused" },
+          { value: "archived", label: "Archived" },
+        ]}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sequence Steps</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {steps.map((step) => (
-            <div key={step.id} className="grid gap-3 rounded-md border border-border p-4 md:grid-cols-3">
-              <Input value={step.name} onChange={(e) => updateStep(step.id, "name", e.target.value)} />
-              <Input
-                type="number"
-                value={step.delayHours}
-                onChange={(e) => updateStep(step.id, "delayHours", Number(e.target.value))}
-                placeholder="Delay hours"
-              />
-              <Input value={step.subject} onChange={(e) => updateStep(step.id, "subject", e.target.value)} placeholder="Email subject" />
-            </div>
-          ))}
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={addStep}>
-              Add Step
-            </Button>
-            <Button onClick={onCreateSequence} disabled={saving}>
-              {saving ? "Creating..." : "Create Sequence"}
-            </Button>
-          </div>
-          {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-        </CardContent>
-      </Card>
+      <SequenceStepsPanel
+        steps={steps}
+        selectedStepId={selectedStepId}
+        onSelectStep={setSelectedStepId}
+        onAddStep={addStep}
+        onUpdateStep={updateStep}
+        onRemoveStep={removeStep}
+        onMoveStep={moveStep}
+      />
+
+      {message ? <p className="text-sm text-amber-600 dark:text-amber-500">{message}</p> : null}
     </div>
   );
 }
-

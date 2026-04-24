@@ -151,7 +151,7 @@ export class LinkedInMessagingService {
     await db.query(
       `UPDATE linkedin_sequences
        SET status = 'replied', reply_text = $1, reply_classification = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3`,
+       WHERE id = $3::uuid`,
       [text, classification, sequenceId],
     );
   }

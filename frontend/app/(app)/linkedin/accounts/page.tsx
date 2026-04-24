@@ -160,6 +160,19 @@ export default function LinkedInAccountsPage() {
           Pair LinkedIn accounts to run outreach campaigns. Passwords are encrypted with AES-256-GCM via the vault;
           sessions are rotated to cookies after first login.
         </p>
+        <p className="text-sm text-muted-foreground">
+          Forgot your LinkedIn password?{" "}
+          <a
+            className="underline underline-offset-4"
+            href="https://www.linkedin.com/uas/request-password-reset"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Reset it on LinkedIn
+          </a>
+          , then use <span className="font-medium text-foreground">Pair account</span> again with the same email and
+          your new password. We never know or reset your LinkedIn password for you.
+        </p>
       </div>
 
       {globalKill ? (
@@ -270,13 +283,26 @@ export default function LinkedInAccountsPage() {
         <div className="grid gap-3 md:grid-cols-2">
           <Input placeholder="LinkedIn email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
           <Input placeholder="Display name (optional)" value={form.displayName} onChange={(e) => setForm((s) => ({ ...s, displayName: e.target.value }))} />
-          <Input
-            type="password"
-            className="md:col-span-2"
-            placeholder="Password"
-            value={form.password}
-            onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
-          />
+          <div className="md:col-span-2 space-y-1">
+            <Input
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Not sure of your password? Recover it on{" "}
+              <a
+                className="underline underline-offset-4"
+                href="https://www.linkedin.com/uas/request-password-reset"
+                target="_blank"
+                rel="noreferrer"
+              >
+                LinkedIn
+              </a>
+              , then pair here with the new password (re-pairing updates the vault).
+            </p>
+          </div>
           <label className="block space-y-1 text-xs">
             <span className="text-muted-foreground">Max actions / day</span>
             <Input type="number" value={form.maxPerDay} onChange={(e) => setForm((s) => ({ ...s, maxPerDay: Number(e.target.value) }))} />

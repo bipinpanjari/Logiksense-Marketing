@@ -323,6 +323,11 @@ export class EmailService {
       host: smtpHost,
       port,
       secure,
+      connectionTimeout: 25_000,
+      greetingTimeout: 15_000,
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
       auth: hasAuth
         ? {
             user: raw.smtp_user,

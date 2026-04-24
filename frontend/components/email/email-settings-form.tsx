@@ -26,6 +26,18 @@ const initialState: FormState = {
   hourlySendLimit: 25,
 };
 
+const SMTP_PRESETS: { label: string; smtpHost: string; smtpPort: string; smtpUserHint?: string }[] = [
+  { label: "Gmail", smtpHost: "smtp.gmail.com", smtpPort: "587", smtpUserHint: "Use an App Password, not your login password" },
+  { label: "Google Workspace", smtpHost: "smtp.gmail.com", smtpPort: "587" },
+  { label: "SendGrid", smtpHost: "smtp.sendgrid.net", smtpPort: "587", smtpUserHint: "User is literally apikey" },
+  { label: "Mailgun", smtpHost: "smtp.mailgun.org", smtpPort: "587" },
+  { label: "Mailtrap", smtpHost: "sandbox.smtp.mailtrap.io", smtpPort: "587" },
+  { label: "Postmark", smtpHost: "smtp.postmarkapp.com", smtpPort: "587" },
+  { label: "SES (SMTP)", smtpHost: "email-smtp.us-east-1.amazonaws.com", smtpPort: "587" },
+  { label: "Microsoft 365", smtpHost: "smtp.office365.com", smtpPort: "587" },
+  { label: "Outlook", smtpHost: "smtp-mail.outlook.com", smtpPort: "587" },
+];
+
 interface DnsTile {
   status: "idle" | "checking" | "ok" | "fail";
   detail?: string;
@@ -174,6 +186,35 @@ export function EmailSettingsForm() {
           <div className="grid gap-2">
             <label className="text-sm font-medium">Sender Name</label>
             <Input value={form.smtpFromName} onChange={(e) => setForm((s) => ({ ...s, smtpFromName: e.target.value }))} />
+          </div>
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">Quick fill (provider)</span>
+            <div className="flex flex-wrap gap-2">
+              {SMTP_PRESETS.map((p) => (
+                <Button
+                  key={p.label}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() =>
+                    setForm((s) => ({
+                      ...s,
+                      smtpHost: p.smtpHost,
+                      smtpPort: p.smtpPort,
+                    }))
+                  }
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+            {form.smtpHost ? (
+              <p className="text-xs text-muted-foreground">
+                {SMTP_PRESETS.find((p) => p.smtpHost === form.smtpHost && p.smtpPort === form.smtpPort)?.smtpUserHint ||
+                  "Port 465 uses implicit TLS; 587 uses STARTTLS (set in saved config)."}
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <label className="text-sm font-medium">SMTP Host</label>

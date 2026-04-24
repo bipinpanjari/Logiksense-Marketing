@@ -23,7 +23,7 @@ export class LinkedInCampaignService {
       `SELECT c.*, a.id AS account_id, a.status AS account_status, a.email AS account_email
        FROM linkedin_campaigns c
        LEFT JOIN linkedin_accounts a ON a.id = c.linkedin_account_id
-       WHERE c.id = $1`,
+       WHERE c.id = $1::uuid`,
       [campaignId],
     );
     const campaign = campaignRes.rows[0];
@@ -40,7 +40,7 @@ export class LinkedInCampaignService {
       return { status: 'paused', reason: 'global-kill-switch', sent: 0, discovered: 0 };
     }
 
-    const workspaceRes = await db.query(`SELECT linkedin_enabled FROM workspaces WHERE id = $1`, [campaign.workspace_id]);
+    const workspaceRes = await db.query(`SELECT linkedin_enabled FROM workspaces WHERE id = $1::uuid`, [campaign.workspace_id]);
     if (!workspaceRes.rows[0]?.linkedin_enabled) {
       await this.setStatus(campaignId, 'paused', 'workspace-not-enabled');
       return { status: 'paused', reason: 'workspace-not-enabled', sent: 0, discovered: 0 };
@@ -79,7 +79,7 @@ export class LinkedInCampaignService {
       // 2) send next step for sequences whose next_send_at <= now
       const pendingRes = await db.query(
         `SELECT * FROM linkedin_sequences
-         WHERE campaign_id = $1
+         WHERE campaign_id = $1::uuid
            AND status IN ('pending','sent')
            AND (next_send_at IS NULL OR next_send_at <= NOW())
          ORDER BY COALESCE(next_send_at, created_at) ASC
@@ -93,7 +93,7 @@ export class LinkedInCampaignService {
         const nextStep = (seq.sequence_step || 0) + 1;
         if (nextStep > steps.length) {
           await db.query(
-            `UPDATE linkedin_sequences SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id = $1`,
+            `UPDATE linkedin_sequences SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id = $1::uuid`,
             [seq.id],
           );
           continue;
@@ -131,7 +131,7 @@ export class LinkedInCampaignService {
         await db.query(
           `INSERT INTO linkedin_messages (workspace_id, campaign_id, sequence_id, linkedin_account_id,
                                            step_number, kind, status, personalisation_tag, body, error, sent_at)
-           VALUES ($1, $2, $3, $4, $5, 'dm', $6, $7, $8, $9, CASE WHEN $6 = 'sent' THEN NOW() ELSE NULL END)`,
+           VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 'dm', $6, $7, $8, $9, CASE WHEN $6 = 'sent' THEN NOW() ELSE NULL END)`,
           [
             campaign.workspace_id,
             campaignId,
@@ -157,19 +157,19 @@ export class LinkedInCampaignService {
                  last_action_at = NOW(),
                  next_send_at = CASE WHEN $3::int IS NULL THEN NULL ELSE NOW() + MAKE_INTERVAL(days => $3) END,
                  updated_at = NOW()
-             WHERE id = $4`,
+             WHERE id = $4::uuid`,
             [nextStep, threadId, nextDelayDays ?? null, seq.id, steps.length],
           );
         } else {
           await db.query(
-            `UPDATE linkedin_sequences SET status='failed', updated_at=NOW() WHERE id = $1`,
+            `UPDATE linkedin_sequences SET status='failed', updated_at=NOW() WHERE id = $1::uuid`,
             [seq.id],
           );
         }
       }
 
       await db.query(
-        `UPDATE linkedin_campaigns SET last_run_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        `UPDATE linkedin_campaigns SET last_run_at = NOW(), updated_at = NOW() WHERE id = $1::uuid`,
         [campaignId],
       );
     } catch (err) {
@@ -192,7 +192,7 @@ export class LinkedInCampaignService {
     await db.query(
       `INSERT INTO linkedin_sequences (workspace_id, campaign_id, profile_url, first_name, last_name,
                                         job_title, company, location, industry, status, next_send_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
+       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
        ON CONFLICT (campaign_id, profile_url) DO NOTHING`,
       [
         campaign.workspace_id,
@@ -228,7 +228,7 @@ export class LinkedInCampaignService {
   private async setStatus(id: string, status: string, reason?: string) {
     const db = getDatabase();
     await db.query(
-      `UPDATE linkedin_campaigns SET status = $1, paused_reason = $2, updated_at = NOW() WHERE id = $3`,
+      `UPDATE linkedin_campaigns SET status = $1, paused_reason = $2, updated_at = NOW() WHERE id = $3::uuid`,
       [status, reason || null, id],
     );
   }

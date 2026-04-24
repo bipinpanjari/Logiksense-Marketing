@@ -29,7 +29,7 @@ export class LinkedInAccountService {
               actions_today, actions_this_hour, actions_this_week,
               day_window_start, hour_window_start, week_window_start,
               max_per_day, max_per_hour, max_per_week, created_at, updated_at
-       FROM linkedin_accounts WHERE workspace_id = $1 ORDER BY created_at DESC`,
+       FROM linkedin_accounts WHERE workspace_id = $1::uuid ORDER BY created_at DESC`,
       [workspaceId],
     );
     return res.rows;
@@ -41,7 +41,7 @@ export class LinkedInAccountService {
 
     const db = getDatabase();
     const existing = await db.query(
-      `SELECT id FROM linkedin_accounts WHERE workspace_id = $1 AND email = $2`,
+      `SELECT id FROM linkedin_accounts WHERE workspace_id = $1::uuid AND email = $2`,
       [workspaceId, input.email.toLowerCase()],
     );
     let accountId: string;
@@ -51,7 +51,7 @@ export class LinkedInAccountService {
       const ins = await db.query(
         `INSERT INTO linkedin_accounts (workspace_id, customer_id, email, display_name,
                                          max_per_day, max_per_hour, max_per_week, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, 'active')
          RETURNING id`,
         [
           workspaceId,
@@ -75,7 +75,7 @@ export class LinkedInAccountService {
       value: input.password,
     });
     await db.query(
-      `UPDATE linkedin_accounts SET password_vault_ref = $1, status = 'active', last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      `UPDATE linkedin_accounts SET password_vault_ref = $1, status = 'active', last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2::uuid`,
       [refKey, accountId],
     );
     await this.audit(workspaceId, customerId, accountId, 'account.paired', { email: input.email });
@@ -97,7 +97,7 @@ export class LinkedInAccountService {
   async remove(workspaceId: string, accountId: string) {
     const db = getDatabase();
     const res = await db.query(
-      `SELECT password_vault_ref, session_vault_ref FROM linkedin_accounts WHERE id = $1 AND workspace_id = $2`,
+      `SELECT password_vault_ref, session_vault_ref FROM linkedin_accounts WHERE id = $1::uuid AND workspace_id = $2::uuid`,
       [accountId, workspaceId],
     );
     if (res.rows.length === 0) throw new NotFoundException('account not found');
@@ -108,8 +108,8 @@ export class LinkedInAccountService {
     if (row.session_vault_ref) {
       await this.vault.delete({ scope: 'linkedin_session', refKey: row.session_vault_ref, workspaceId }).catch(() => null);
     }
-    await db.query(`DELETE FROM linkedin_accounts WHERE id = $1 AND workspace_id = $2`, [accountId, workspaceId]);
-    await this.audit(workspaceId, null, accountId, 'account.deleted', {});
+    await this.audit(workspaceId, null, accountId, 'account.deleted', { accountId });
+    await db.query(`DELETE FROM linkedin_accounts WHERE id = $1::uuid AND workspace_id = $2::uuid`, [accountId, workspaceId]);
     return { ok: true };
   }
 
@@ -141,7 +141,7 @@ export class LinkedInAccountService {
   async getStatus(workspaceId: string) {
     const db = getDatabase();
     const res = await db.query(
-      `SELECT linkedin_enabled, linkedin_tos_accepted_at, linkedin_tos_accepted_by FROM workspaces WHERE id = $1`,
+      `SELECT linkedin_enabled, linkedin_tos_accepted_at, linkedin_tos_accepted_by FROM workspaces WHERE id = $1::uuid`,
       [workspaceId],
     );
     return {
@@ -157,7 +157,7 @@ export class LinkedInAccountService {
     const res = await db.query(
       `SELECT id, linkedin_account_id, customer_id, event, details, created_at
        FROM linkedin_audit_log
-       WHERE workspace_id = $1
+       WHERE workspace_id = $1::uuid
        ORDER BY created_at DESC
        LIMIT $2`,
       [workspaceId, Math.min(limit, 500)],
@@ -169,7 +169,7 @@ export class LinkedInAccountService {
     const db = getDatabase();
     const res = await db.query(
       `UPDATE linkedin_accounts SET status = $1, last_error = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3 AND workspace_id = $4
+       WHERE id = $3::uuid AND workspace_id = $4::uuid
        RETURNING id`,
       [status, lastError || null, accountId, workspaceId],
     );

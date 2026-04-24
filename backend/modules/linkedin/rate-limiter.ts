@@ -37,7 +37,7 @@ export async function checkAndIncrement(accountId: string): Promise<RateDecision
                   THEN NOW() ELSE week_window_start END AS new_week_start,
              max_per_hour, max_per_day, max_per_week
       FROM linkedin_accounts
-      WHERE id = $1
+      WHERE id = $1::uuid
     ),
     updated AS (
       UPDATE linkedin_accounts a

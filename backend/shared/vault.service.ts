@@ -95,7 +95,7 @@ export class VaultService {
       await db.query(
         `UPDATE vault_secrets
          SET encrypted_value = $1, metadata = $2::jsonb, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
+         WHERE id = $3::uuid`,
         [encrypted, metadataJson, id],
       );
       return { id };
@@ -103,7 +103,7 @@ export class VaultService {
 
     const insert = await db.query(
       `INSERT INTO vault_secrets (workspace_id, customer_id, scope, ref_key, encrypted_value, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::jsonb)
        RETURNING id`,
       [
         input.workspaceId ?? null,

@@ -72,3 +72,24 @@ body {
   min-height: 100vh;
 }
 
+/* Hide scrollbars app-wide while keeping scroll behavior (Firefox + IE legacy + WebKit). */
+html {
+  scrollbar-width: none;
+}
+body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+

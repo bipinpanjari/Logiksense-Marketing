@@ -38,7 +38,7 @@ export class LinkedInService {
               (SELECT COUNT(*) FROM linkedin_sequences s WHERE s.campaign_id = c.id AND s.status = 'replied') AS reply_count
        FROM linkedin_campaigns c
        LEFT JOIN linkedin_accounts a ON a.id = c.linkedin_account_id
-       WHERE c.workspace_id = $1
+       WHERE c.workspace_id = $1::uuid
        ORDER BY c.updated_at DESC`,
       [workspaceId],
     );
@@ -51,7 +51,7 @@ export class LinkedInService {
       `SELECT c.*, a.email AS account_email, a.status AS account_status
        FROM linkedin_campaigns c
        LEFT JOIN linkedin_accounts a ON a.id = c.linkedin_account_id
-       WHERE c.id = $1 AND c.workspace_id = $2`,
+       WHERE c.id = $1::uuid AND c.workspace_id = $2::uuid`,
       [id, workspaceId],
     );
     if (res.rows.length === 0) throw new NotFoundException('campaign not found');
@@ -60,14 +60,14 @@ export class LinkedInService {
       `SELECT id, first_name, last_name, job_title, company, location, status,
               sequence_step, next_send_at, last_action_at, reply_classification,
               created_at, updated_at
-       FROM linkedin_sequences WHERE campaign_id = $1
+       FROM linkedin_sequences WHERE campaign_id = $1::uuid
        ORDER BY created_at DESC LIMIT 200`,
       [id],
     );
 
     const messages = await db.query(
       `SELECT id, sequence_id, step_number, kind, status, body, error, sent_at, created_at
-       FROM linkedin_messages WHERE campaign_id = $1
+       FROM linkedin_messages WHERE campaign_id = $1::uuid
        ORDER BY created_at DESC LIMIT 200`,
       [id],
     );
@@ -82,7 +82,7 @@ export class LinkedInService {
       `INSERT INTO linkedin_campaigns (workspace_id, customer_id, linkedin_account_id, name,
                                         job_title_filter, industry_filter, company_size_filter,
                                         seniority_filter, location, max_per_day, messages, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, 'draft')
+       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, 'draft')
        RETURNING *`,
       [
         workspaceId,
@@ -110,8 +110,12 @@ export class LinkedInService {
       fields.push(`${col} = $${idx++}`);
       values.push(val);
     };
+    const pushUuid = (col: string, val: any) => {
+      fields.push(`${col} = $${idx++}::uuid`);
+      values.push(val);
+    };
     if (typeof input.name === 'string') push('name', input.name.trim());
-    if (typeof input.linkedinAccountId !== 'undefined') push('linkedin_account_id', input.linkedinAccountId || null);
+    if (typeof input.linkedinAccountId !== 'undefined') pushUuid('linkedin_account_id', input.linkedinAccountId || null);
     if (typeof input.jobTitleFilter !== 'undefined') push('job_title_filter', input.jobTitleFilter || null);
     if (typeof input.industryFilter !== 'undefined') push('industry_filter', input.industryFilter || null);
     if (typeof input.companySizeFilter !== 'undefined') push('company_size_filter', input.companySizeFilter || null);
@@ -127,7 +131,7 @@ export class LinkedInService {
     values.push(workspaceId);
     const res = await db.query(
       `UPDATE linkedin_campaigns SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $${idx++} AND workspace_id = $${idx}
+       WHERE id = $${idx}::uuid AND workspace_id = $${idx + 1}::uuid
        RETURNING *`,
       values,
     );
@@ -140,7 +144,7 @@ export class LinkedInService {
     const db = getDatabase();
     const res = await db.query(
       `UPDATE linkedin_campaigns SET status = 'running', paused_reason = NULL, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND workspace_id = $2
+       WHERE id = $1::uuid AND workspace_id = $2::uuid
        RETURNING id, linkedin_account_id`,
       [id, workspaceId],
     );
@@ -160,7 +164,7 @@ export class LinkedInService {
     const db = getDatabase();
     const res = await db.query(
       `UPDATE linkedin_campaigns SET status = 'paused', paused_reason = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND workspace_id = $3
+       WHERE id = $2::uuid AND workspace_id = $3::uuid
        RETURNING id`,
       [reason || 'manual', id, workspaceId],
     );
@@ -170,7 +174,7 @@ export class LinkedInService {
 
   async deleteCampaign(workspaceId: string, id: string) {
     const db = getDatabase();
-    await db.query(`DELETE FROM linkedin_campaigns WHERE id = $1 AND workspace_id = $2`, [id, workspaceId]);
+    await db.query(`DELETE FROM linkedin_campaigns WHERE id = $1::uuid AND workspace_id = $2::uuid`, [id, workspaceId]);
     return { ok: true };
   }
 
@@ -179,7 +183,7 @@ export class LinkedInService {
       throw new BadRequestException('LinkedIn automation is globally disabled by operator kill-switch');
     }
     const db = getDatabase();
-    const res = await db.query(`SELECT linkedin_enabled FROM workspaces WHERE id = $1`, [workspaceId]);
+    const res = await db.query(`SELECT linkedin_enabled FROM workspaces WHERE id = $1::uuid`, [workspaceId]);
     if (!res.rows[0]?.linkedin_enabled) {
       throw new BadRequestException('LinkedIn automation is not enabled for this workspace. Accept the ToS first.');
     }

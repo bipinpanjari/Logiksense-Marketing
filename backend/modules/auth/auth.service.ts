@@ -51,7 +51,14 @@ export class AuthService {
             planTier: 'starter',
             subscriptionStatus: 'trial',
           },
-          select: { id: true, email: true, firstName: true, lastName: true, onboardingCompleted: true },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            onboardingCompleted: true,
+            role: true,
+          },
         });
 
         const workspace = await tx.workspace.create({
@@ -65,8 +72,7 @@ export class AuthService {
         return { user, workspace };
       });
 
-      // Generate tokens
-      const tokens = this.generateTokens(result.user.id, result.workspace.id, email, 'user');
+      const tokens = this.generateTokens(result.user.id, result.workspace.id, email, result.user.role);
 
       return {
         user: {
@@ -96,7 +102,15 @@ export class AuthService {
       // Find user
       const user = await this.prisma.customer.findFirst({
         where: { email: { equals: email, mode: 'insensitive' } },
-        select: { id: true, email: true, passwordHash: true, firstName: true, lastName: true, onboardingCompleted: true },
+        select: {
+          id: true,
+          email: true,
+          passwordHash: true,
+          firstName: true,
+          lastName: true,
+          onboardingCompleted: true,
+          role: true,
+        },
       });
 
       if (!user) {
@@ -120,8 +134,7 @@ export class AuthService {
         throw new UnauthorizedException('No workspace found for this user');
       }
 
-      // Generate tokens
-      const tokens = this.generateTokens(user.id, workspace.id, user.email, 'user');
+      const tokens = this.generateTokens(user.id, workspace.id, user.email, user.role);
 
       return {
         user: {
@@ -155,17 +168,26 @@ export class AuthService {
 
       const decoded = this.jwtService.verify(refreshToken, {
         secret: refreshSecret,
-      });
+      }) as { userId?: string; workspaceId?: string; email?: string; role?: string };
 
-      const accessToken = this.jwtService.sign({
-        userId: decoded.userId,
-        workspaceId: decoded.workspaceId,
-        email: decoded.email,
-        role: decoded.role,
-      }, {
-        secret: accessSecret,
-        expiresIn: accessExpiration,
+      const fresh = await this.prisma.customer.findUnique({
+        where: { id: decoded.userId as string },
+        select: { role: true },
       });
+      const role = fresh?.role ?? decoded.role ?? 'member';
+
+      const accessToken = this.jwtService.sign(
+        {
+          userId: decoded.userId,
+          workspaceId: decoded.workspaceId,
+          email: decoded.email,
+          role,
+        },
+        {
+          secret: accessSecret,
+          expiresIn: accessExpiration,
+        },
+      );
 
       return { accessToken };
     } catch (error) {
