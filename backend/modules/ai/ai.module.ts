@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { VaultService } from '../../shared/vault.service';
 import { NameDetectorService } from './name-detector.service';
 import { AiUsageService } from './ai-usage.service';
-import { OpenAiClient } from './openai.client';
+import { LlmGatewayService } from './llm-gateway.service';
 import { IcebreakerService } from './icebreaker.service';
 import { EnrichmentService } from './enrichment.service';
 import { AiSettingsService } from './ai-settings.service';
@@ -15,7 +15,7 @@ import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service
     VaultService,
     NameDetectorService,
     AiUsageService,
-    OpenAiClient,
+    LlmGatewayService,
     IcebreakerService,
     EnrichmentService,
     AiSettingsService,
@@ -26,7 +26,7 @@ import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service
     IcebreakerService,
     EnrichmentService,
     AiUsageService,
-    OpenAiClient,
+    LlmGatewayService,
     WebsiteDigestRepBriefService,
   ],
 })

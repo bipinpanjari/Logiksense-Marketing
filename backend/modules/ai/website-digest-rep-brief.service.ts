@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OpenAiClient } from './openai.client';
+import { LlmGatewayService } from './llm-gateway.service';
 import { AiUsageService } from './ai-usage.service';
 import { getDatabase } from '../../shared/database';
+import { mergePersonalizationInstructionsIntoSystem } from './ai-personalization-instructions.util';
 
 export interface WebsiteDigestStructuredPage {
   url: string;
@@ -149,7 +150,7 @@ export class WebsiteDigestRepBriefService {
   private readonly logger = new Logger(WebsiteDigestRepBriefService.name);
 
   constructor(
-    private readonly openai: OpenAiClient,
+    private readonly llm: LlmGatewayService,
     private readonly usage: AiUsageService,
   ) {}
 
@@ -158,12 +159,18 @@ export class WebsiteDigestRepBriefService {
    */
   async buildRepBriefFromExtraction(input: RepBriefExtractionInput): Promise<WebsiteDigestStructured | null> {
     const db = getDatabase();
-    const wsRes = await db.query(`SELECT ai_personalization_enabled FROM workspaces WHERE id = $1::uuid`, [
-      input.workspaceId,
-    ]);
-    if (wsRes.rows[0]?.ai_personalization_enabled !== true) {
+    const wsRes = await db.query(
+      `SELECT ai_personalization_enabled, ai_personalization_instructions FROM workspaces WHERE id = $1::uuid`,
+      [input.workspaceId],
+    );
+    const wsRow = wsRes.rows[0];
+    if (wsRow?.ai_personalization_enabled !== true) {
       return null;
     }
+    const personalizationInstructions =
+      typeof wsRow?.ai_personalization_instructions === 'string'
+        ? wsRow.ai_personalization_instructions
+        : null;
 
     const bundle = buildResearchBundle(input);
     if (!bundle || bundle.length < 20) return null;
@@ -177,10 +184,7 @@ export class WebsiteDigestRepBriefService {
   "pages": []
 }`;
 
-    const messages = [
-      {
-        role: 'system' as const,
-        content: `You are a senior B2B sales rep writing your own account notes after reviewing research gathered by your team. The user message is ALL you have: listing row, Google Maps attributes, phones/emails, website crawl text, and page snapshots.
+    const systemBase = `You are a senior B2B sales rep writing your own account notes after reviewing research gathered by your team. The user message is ALL you have: listing row, Google Maps attributes, phones/emails, website crawl text, and page snapshots.
 
 Your job is to UNDERSTAND the business the way a human seller would — who they are, what they likely offer, who buys, how they present themselves, and what a thoughtful first conversation could reference. You are not an information architect. Do not "structure the website" or classify every URL. Do not produce CMS-style page inventories.
 
@@ -192,7 +196,12 @@ Rules:
 - Ground every factual claim in the labeled sections. If the data is thin, say so in openQuestions instead of inventing.
 - Never invent awards, press, certifications, revenue, headcount, logos, or contacts.
 - Use Maps + listing + contacts even when website text is missing.
-- Tone: clear, direct colleague — not marketing fluff, not robotic JSON-speak.`,
+- Tone: clear, direct colleague — not marketing fluff, not robotic JSON-speak.`;
+
+    const messages = [
+      {
+        role: 'system' as const,
+        content: mergePersonalizationInstructionsIntoSystem(systemBase, personalizationInstructions),
       },
       {
         role: 'user' as const,
@@ -200,8 +209,11 @@ Rules:
       },
     ];
 
+    const routing = await this.llm.resolveCredentials(input.workspaceId);
+    if (!routing) return null;
+
     try {
-      const result = await this.openai.chat({
+      const result = await this.llm.chat({
         workspaceId: input.workspaceId,
         customerId: input.customerId ?? null,
         messages,
@@ -252,7 +264,7 @@ Rules:
       await this.usage.log({
         workspaceId: input.workspaceId,
         customerId: input.customerId ?? null,
-        provider: 'openai',
+        provider: result.provider,
         model: result.model,
         operation: 'website_digest_rep_brief',
         inputTokens: result.inputTokens,
@@ -279,10 +291,10 @@ Rules:
         await this.usage.log({
           workspaceId: input.workspaceId,
           customerId: input.customerId ?? null,
-          provider: 'openai',
-          model: process.env.AI_DEFAULT_MODEL || 'gpt-4o-mini',
+          provider: routing.vendor,
+          model: routing.model,
           operation: 'website_digest_rep_brief',
-          byok: false,
+          byok: routing.byok,
           status: 'error',
           error: msg.slice(0, 500),
         });

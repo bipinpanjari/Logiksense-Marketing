@@ -1,13 +1,22 @@
 import { authedFetch } from "@/lib/api-client";
 
+export type AiLlmVendor = "openai" | "anthropic";
+
+export const AI_PERSONALIZATION_INSTRUCTIONS_MAX_CHARS = 20_000;
+
 export interface AiSettings {
   aiPersonalizationEnabled: boolean;
+  aiPersonalizationInstructions: string | null;
   aiProvider: "platform" | "byok";
+  aiLlmVendor: AiLlmVendor;
+  aiPreferredModel: string | null;
   aiOpenaiConfigured: boolean;
+  aiAnthropicConfigured: boolean;
   enrichmentEnabled: boolean;
   zerobounceConfigured: boolean;
   apolloConfigured: boolean;
-  platformKeyAvailable: boolean;
+  platformOpenAiAvailable: boolean;
+  platformAnthropicAvailable: boolean;
 }
 
 export interface AiUsageSummaryRow {
@@ -44,9 +53,13 @@ export async function getAiSettings(): Promise<AiSettings> {
 
 export interface UpdateAiSettingsBody {
   aiPersonalizationEnabled?: boolean;
+  aiPersonalizationInstructions?: string | null;
   aiProvider?: "platform" | "byok";
+  aiLlmVendor?: AiLlmVendor;
+  aiPreferredModel?: string | null;
   enrichmentEnabled?: boolean;
   openaiApiKey?: string | null;
+  anthropicApiKey?: string | null;
   zerobounceApiKey?: string | null;
   apolloApiKey?: string | null;
 }

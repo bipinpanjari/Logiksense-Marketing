@@ -58,8 +58,13 @@ model Workspace {
   linkedinTosAcceptedAt DateTime? @map("linkedin_tos_accepted_at") @db.Timestamp(6)
   linkedinTosAcceptedBy String?   @map("linkedin_tos_accepted_by") @db.Uuid
   aiPersonalizationEnabled Boolean  @default(false) @map("ai_personalization_enabled")
+  aiPersonalizationInstructions String? @map("ai_personalization_instructions") @db.Text
   aiProvider               String   @default("platform") @map("ai_provider") @db.VarChar(32)
+  /** openai | anthropic — which inference API to call */
+  aiLlmVendor              String   @default("openai") @map("ai_llm_vendor") @db.VarChar(32)
+  aiPreferredModel         String?  @map("ai_preferred_model") @db.VarChar(64)
   aiOpenaiVaultRef         String?  @map("ai_openai_vault_ref") @db.VarChar(255)
+  aiAnthropicVaultRef      String?  @map("ai_anthropic_vault_ref") @db.VarChar(255)
   enrichmentEnabled        Boolean  @default(false) @map("enrichment_enabled")
   zerobounceVaultRef       String?  @map("zerobounce_vault_ref") @db.VarChar(255)
   apolloVaultRef           String?  @map("apollo_vault_ref") @db.VarChar(255)

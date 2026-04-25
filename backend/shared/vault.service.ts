@@ -8,6 +8,7 @@ const TAG_LENGTH_BYTES = 16;
 export type VaultScope =
   | 'smtp'
   | 'openai'
+  | 'anthropic'
   | 'zerobounce'
   | 'apollo'
   | 'linkedin_session'

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listScraperJobs, ScraperJobRow } from "@/lib/scraper";
 import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
+import { useAiDigestFlight } from "@/hooks/use-ai-digest-flight";
 
 function statusVariant(status: ScraperJobRow["status"]) {
   switch (status) {
@@ -27,8 +28,9 @@ export default function ScraperJobsPage() {
   const [jobs, setJobs] = useState<ScraperJobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { markFlight, isInFlight, anyInFlight } = useAiDigestFlight(jobs);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -39,13 +41,17 @@ export default function ScraperJobsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 10_000);
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const ms = anyInFlight ? 3_000 : 10_000;
+    const id = setInterval(() => void load(), ms);
     return () => clearInterval(id);
-  }, []);
+  }, [anyInFlight, load]);
 
   return (
     <div className="space-y-6">
@@ -101,6 +107,8 @@ export default function ScraperJobsPage() {
                       <td className="px-3 py-2 align-middle">
                         <JobAiDigestActions
                           job={job}
+                          digestInFlight={isInFlight(job.id, job)}
+                          onDigestFlightStarted={markFlight}
                           onDone={async () => {
                             setError("");
                             await load();

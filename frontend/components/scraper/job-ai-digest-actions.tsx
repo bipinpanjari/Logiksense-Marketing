@@ -10,8 +10,10 @@ import {
   Inbox,
   Layers,
   Loader2,
+  Settings2,
   Wand2,
 } from "lucide-react";
+import { AiPersonalizationInstructionsDialog } from "@/components/ai/ai-personalization-instructions-dialog";
 import { Button } from "@/components/ui/button";
 import { InstantTooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -32,7 +34,7 @@ export function jobCanRerunAiDigest(job: ScraperJobRow): boolean {
   return t > 0 && a >= t;
 }
 
-/** Table column: icon + native tooltip only (no labels). */
+/** Table column: icon + native tooltip only (no labels). Background progress uses the wand spinner, not this icon. */
 function digestAiColumnState(job: ScraperJobRow): {
   icon: LucideIcon;
   iconClassName?: string;
@@ -201,36 +203,38 @@ export function JobAiDigestBadge({ job }: { job: ScraperJobRow }) {
 const runButtonClass =
   "h-9 shrink-0 gap-2 border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent font-medium shadow-sm transition-colors hover:border-primary/45 hover:bg-primary/[0.1]";
 
-const BUSY_MIN_MS = 520;
-
 export function JobAiDigestActions({
   job,
   onDone,
   onError,
   compact,
+  digestInFlight,
+  onDigestFlightStarted,
 }: {
   job: ScraperJobRow;
   onDone: () => void | Promise<void>;
   onError: (msg: string) => void;
   compact?: boolean;
+  /** True while a queued worker is still catching up digest_items_ai vs total. */
+  digestInFlight?: boolean;
+  onDigestFlightStarted?: (jobId: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [queuedNote, setQueuedNote] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
 
   async function submit(options: { force: boolean }) {
     setBusy(true);
-    const started = Date.now();
     try {
       const out = await backfillScraperJobAiDigest(job.id, { force: options.force });
+      if (out.ok) {
+        onDigestFlightStarted?.(job.id);
+      }
       if (out.queued) {
         setQueuedNote(true);
         window.setTimeout(() => setQueuedNote(false), 14_000);
       }
       await Promise.resolve(onDone());
-      const elapsed = Date.now() - started;
-      if (elapsed < BUSY_MIN_MS) {
-        await new Promise((r) => setTimeout(r, BUSY_MIN_MS - elapsed));
-      }
     } catch (e: unknown) {
       onError(e instanceof Error ? e.message : "AI personalization failed");
     } finally {
@@ -241,82 +245,119 @@ export function JobAiDigestActions({
   const showRun = jobNeedsAiDigest(job);
   const showRerun = jobCanRerunAiDigest(job);
   const showAiButton = showRun || showRerun;
-  /** All briefs already exist → same button, server overwrites every row. */
   const forceRegenerate = showRerun && !showRun;
+  const showButtonSpinner = busy || (!!digestInFlight && showAiButton);
   const aiButtonTip = busy
-    ? "Queuing on server…"
-    : forceRegenerate
-      ? "Run AI again for every business (overwrites current briefs). Same as a fresh run — safe to switch pages."
-      : "Run AI for businesses missing a brief. Continues in the background — safe to switch pages.";
+    ? "Queuing…"
+    : digestInFlight && showAiButton
+      ? "AI is generating briefs in the background."
+      : forceRegenerate
+        ? "Run AI again for every business (overwrites current briefs)."
+        : "Run AI for businesses missing a brief.";
 
   if (compact) {
     const { icon: StatusIcon, iconClassName, title: statusTitle } = digestAiColumnState(job);
     return (
-      <div className="inline-flex items-center gap-1">
-        <InstantTooltip label={statusTitle} side="bottom">
-          <span
-            className="inline-flex h-8 w-8 cursor-default items-center justify-center rounded-md border border-border/60 bg-muted/20"
-            aria-label={statusTitle}
-          >
-            <StatusIcon className={cn("h-4 w-4 shrink-0", iconClassName)} strokeWidth={1.75} aria-hidden />
-          </span>
-        </InstantTooltip>
-        {showAiButton ? (
-          <InstantTooltip label={aiButtonTip} side="bottom">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              className="h-8 w-8 shrink-0 border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent p-0 shadow-sm"
-              onClick={() => void submit({ force: forceRegenerate })}
+      <>
+        <div className="inline-flex items-center gap-1">
+          <InstantTooltip label={statusTitle} side="bottom">
+            <span
+              className="inline-flex h-8 w-8 cursor-default items-center justify-center rounded-md border border-border/60 bg-muted/20"
+              aria-label={statusTitle}
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
-              ) : (
-                <Wand2 className="h-4 w-4 text-primary" aria-hidden />
-              )}
-              <span className="sr-only">{busy ? "Starting" : "Run AI"}</span>
-            </Button>
+              <StatusIcon className={cn("h-4 w-4 shrink-0", iconClassName)} strokeWidth={1.75} aria-hidden />
+            </span>
           </InstantTooltip>
-        ) : null}
-      </div>
+          {showAiButton ? (
+            <>
+              <InstantTooltip label="AI workspace instructions" side="bottom">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 shrink-0 border-border/70 p-0"
+                  onClick={() => setInstructionsOpen(true)}
+                >
+                  <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  <span className="sr-only">AI instructions</span>
+                </Button>
+              </InstantTooltip>
+              <InstantTooltip label={aiButtonTip} side="bottom">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  className="h-8 w-8 shrink-0 border-primary/30 bg-gradient-to-b from-primary/[0.07] to-transparent p-0 shadow-sm"
+                  onClick={() => void submit({ force: forceRegenerate })}
+                >
+                  {showButtonSpinner ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
+                  ) : (
+                    <Wand2 className="h-4 w-4 text-primary" aria-hidden />
+                  )}
+                  <span className="sr-only">{showButtonSpinner ? "Working" : "Run AI"}</span>
+                </Button>
+              </InstantTooltip>
+            </>
+          ) : null}
+        </div>
+        <AiPersonalizationInstructionsDialog open={instructionsOpen} onOpenChange={setInstructionsOpen} />
+      </>
     );
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <div className="min-w-0 max-w-lg">
-        <JobAiDigestBadge job={job} />
-      </div>
-      {showAiButton ? (
-        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-start">
-          <div className="flex flex-wrap items-center gap-2">
-            <InstantTooltip label={aiButtonTip} side="top" className="shrink-0">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                className={cn(runButtonClass, "transition-colors hover:border-primary/45 hover:bg-primary/[0.1]")}
-                onClick={() => void submit({ force: forceRegenerate })}
-              >
-                {busy ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
-                ) : (
-                  <Wand2 className="h-3.5 w-3.5 text-primary" aria-hidden />
-                )}
-                {busy ? "Starting…" : "Run AI"}
-              </Button>
-            </InstantTooltip>
-          </div>
-          {queuedNote ? (
-            <p className="max-w-[280px] text-[11px] leading-snug text-muted-foreground">
-              Queued on the server — safe to leave this page. Lists refresh on a short interval.
-            </p>
-          ) : null}
+    <>
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="min-w-0 max-w-lg">
+          <JobAiDigestBadge job={job} />
         </div>
-      ) : null}
-    </div>
+        {showAiButton ? (
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-start">
+            <div className="flex flex-wrap items-center gap-2">
+              <InstantTooltip label="AI workspace instructions" side="top" className="shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    runButtonClass,
+                    "h-9 w-9 border-border/70 p-0 transition-colors hover:border-primary/35 hover:bg-muted/40",
+                  )}
+                  onClick={() => setInstructionsOpen(true)}
+                >
+                  <Settings2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  <span className="sr-only">AI instructions</span>
+                </Button>
+              </InstantTooltip>
+              <InstantTooltip label={aiButtonTip} side="top" className="shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  className={cn(runButtonClass, "transition-colors hover:border-primary/45 hover:bg-primary/[0.1]")}
+                  onClick={() => void submit({ force: forceRegenerate })}
+                >
+                  {showButtonSpinner ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5 text-primary" aria-hidden />
+                  )}
+                  {showButtonSpinner ? "Working…" : "Run AI"}
+                </Button>
+              </InstantTooltip>
+            </div>
+            {queuedNote ? (
+              <p className="max-w-[280px] text-[11px] leading-snug text-muted-foreground">
+                Queued on the server — safe to leave this page. Lists refresh on a short interval.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <AiPersonalizationInstructionsDialog open={instructionsOpen} onOpenChange={setInstructionsOpen} />
+    </>
   );
 }

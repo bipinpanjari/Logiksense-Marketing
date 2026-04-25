@@ -4,7 +4,7 @@ import { getDatabase } from '../../shared/database';
 export interface UsageEvent {
   workspaceId: string;
   customerId?: string | null;
-  provider: 'openai' | 'platform' | 'zerobounce' | 'apollo';
+  provider: 'openai' | 'anthropic' | 'platform' | 'zerobounce' | 'apollo';
   model: string;
   operation: string;
   inputTokens?: number | null;
@@ -22,6 +22,10 @@ const DEFAULT_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-4o-mini': { input: 0.015, output: 0.06 },
   'gpt-4o': { input: 0.25, output: 1 },
   'gpt-4.1-mini': { input: 0.015, output: 0.06 },
+  'claude-3-5-sonnet-20241022': { input: 0.3, output: 1.5 },
+  'claude-sonnet-4-6': { input: 0.35, output: 1.75 },
+  'claude-3-5-haiku-20241022': { input: 0.08, output: 0.4 },
+  'claude-3-opus-20240229': { input: 1.5, output: 7.5 },
 };
 
 @Injectable()

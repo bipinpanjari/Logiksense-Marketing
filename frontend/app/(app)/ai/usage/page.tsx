@@ -18,6 +18,17 @@ function formatCents(cents: string | null): string {
   return `$${(n / 100).toFixed(4)}`;
 }
 
+function providerLabel(id: string): string {
+  const m: Record<string, string> = {
+    openai: "OpenAI",
+    anthropic: "Claude",
+    zerobounce: "ZeroBounce",
+    apollo: "Apollo",
+    platform: "Other",
+  };
+  return m[id] ?? id;
+}
+
 export default function AiUsagePage() {
   const [summary, setSummary] = useState<AiUsageSummaryRow[]>([]);
   const [recent, setRecent] = useState<AiUsageRecentRow[]>([]);
@@ -48,13 +59,13 @@ export default function AiUsagePage() {
   const totalTokens = summary.reduce((acc, row) => acc + (row.total_tokens ?? 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">AI & Enrichment Usage</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">AI &amp; enrichment usage</h1>
           <p className="text-sm text-muted-foreground">
-            Every OpenAI, ZeroBounce and Apollo call the workspace makes is metered here, separating platform
-            spend from BYOK credits.
+            AI generation, email verification, and enrichment usage for this workspace. Organization and
+            workspace keys are labeled so you can see what ran where.
           </p>
         </div>
         <div className="flex gap-2">
@@ -89,7 +100,7 @@ export default function AiUsagePage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>By provider / model / operation</CardTitle></CardHeader>
+        <CardHeader><CardTitle>By service, model, and action</CardTitle></CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading…</div>
@@ -100,10 +111,10 @@ export default function AiUsagePage() {
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase text-muted-foreground">
                   <tr>
-                    <th className="py-2 pr-4">Provider</th>
+                    <th className="py-2 pr-4">Service</th>
                     <th className="py-2 pr-4">Model</th>
                     <th className="py-2 pr-4">Operation</th>
-                    <th className="py-2 pr-4">Mode</th>
+                    <th className="py-2 pr-4">Billing</th>
                     <th className="py-2 pr-4">Calls</th>
                     <th className="py-2 pr-4">Tokens</th>
                     <th className="py-2 pr-4">Spend</th>
@@ -112,12 +123,12 @@ export default function AiUsagePage() {
                 <tbody>
                   {summary.map((row, idx) => (
                     <tr key={idx} className="border-t">
-                      <td className="py-2 pr-4">{row.provider}</td>
+                      <td className="py-2 pr-4">{providerLabel(row.provider)}</td>
                       <td className="py-2 pr-4">{row.model}</td>
                       <td className="py-2 pr-4">{row.operation}</td>
                       <td className="py-2 pr-4">
                         <Badge variant={row.byok ? "secondary" : "outline"}>
-                          {row.byok ? "BYOK" : "Platform"}
+                          {row.byok ? "Your key" : "Organization"}
                         </Badge>
                       </td>
                       <td className="py-2 pr-4">{row.calls}</td>
@@ -145,7 +156,7 @@ export default function AiUsagePage() {
                 <thead className="text-left text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="py-2 pr-4">When</th>
-                    <th className="py-2 pr-4">Provider</th>
+                    <th className="py-2 pr-4">Service</th>
                     <th className="py-2 pr-4">Model</th>
                     <th className="py-2 pr-4">Operation</th>
                     <th className="py-2 pr-4">Tokens</th>
@@ -159,14 +170,14 @@ export default function AiUsagePage() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {new Date(row.created_at).toLocaleString()}
                       </td>
-                      <td className="py-2 pr-4">{row.provider}</td>
+                      <td className="py-2 pr-4">{providerLabel(row.provider)}</td>
                       <td className="py-2 pr-4">{row.model}</td>
                       <td className="py-2 pr-4">{row.operation}</td>
                       <td className="py-2 pr-4">{row.total_tokens ?? 0}</td>
                       <td className="py-2 pr-4">{formatCents(row.cost_cents)}</td>
                       <td className="py-2 pr-4">
                         {row.status === "ok" ? (
-                          <Badge variant="success">ok</Badge>
+                          <Badge variant="success">Ok</Badge>
                         ) : (
                           <Badge variant="outline">{row.status}</Badge>
                         )}

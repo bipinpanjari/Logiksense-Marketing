@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OpenAiClient } from './openai.client';
+import { LlmGatewayService } from './llm-gateway.service';
 import { AiUsageService } from './ai-usage.service';
 import { getDatabase } from '../../shared/database';
+import { mergePersonalizationInstructionsIntoSystem } from './ai-personalization-instructions.util';
 
 export interface IcebreakerInput {
   workspaceId: string;
@@ -20,42 +21,44 @@ export interface IcebreakerResult {
   model?: string;
 }
 
-/**
- * Generates a single-line opening sentence for outreach. Honours the workspace
- * AI kill-switch (ai_personalization_enabled) and logs every call to the usage
- * ledger so BYOK and platform spend stay auditable.
- */
 @Injectable()
 export class IcebreakerService {
   private readonly logger = new Logger(IcebreakerService.name);
 
   constructor(
-    private readonly openai: OpenAiClient,
+    private readonly llm: LlmGatewayService,
     private readonly usage: AiUsageService,
   ) {}
 
   async generate(input: IcebreakerInput): Promise<IcebreakerResult> {
     const db = getDatabase();
     const wsRes = await db.query(
-      `SELECT ai_personalization_enabled FROM workspaces WHERE id = $1`,
+      `SELECT ai_personalization_enabled, ai_personalization_instructions FROM workspaces WHERE id = $1`,
       [input.workspaceId],
     );
-    const enabled = wsRes.rows[0]?.ai_personalization_enabled === true;
+    const wsRow = wsRes.rows[0];
+    const enabled = wsRow?.ai_personalization_enabled === true;
     if (!enabled) return { icebreaker: '', source: 'disabled' };
+    const personalizationInstructions =
+      typeof wsRow?.ai_personalization_instructions === 'string'
+        ? wsRow.ai_personalization_instructions
+        : null;
 
     const context = (input.websiteText || '').trim();
     if (!context && !input.industry && !input.jobTitle) {
       return { icebreaker: this.templateFallback(input), source: 'template_fallback' };
     }
 
-    const messages = [
-      {
-        role: 'system' as const,
-        content: `You are a senior B2B sales rep. Write ONE casual, specific, friendly opening sentence ("icebreaker") for an outreach email. Rules:
+    const systemBase = `You are a senior B2B sales rep. Write ONE casual, specific, friendly opening sentence ("icebreaker") for an outreach email. Rules:
 1. Ground it in the provided context - no generic "leading provider" phrases.
 2. Strictly under 20 words.
 3. No greetings, no sign-offs, no quotes. Output the sentence only.
-4. If the lead has a first name use it naturally, otherwise reference the company.`,
+4. If the lead has a first name use it naturally, otherwise reference the company.`;
+
+    const messages = [
+      {
+        role: 'system' as const,
+        content: mergePersonalizationInstructionsIntoSystem(systemBase, personalizationInstructions),
       },
       {
         role: 'user' as const,
@@ -71,8 +74,13 @@ export class IcebreakerService {
       },
     ];
 
+    const routing = await this.llm.resolveCredentials(input.workspaceId);
+    if (!routing) {
+      return { icebreaker: this.templateFallback(input), source: 'template_fallback' };
+    }
+
     try {
-      const result = await this.openai.chat({
+      const result = await this.llm.chat({
         workspaceId: input.workspaceId,
         customerId: input.customerId ?? null,
         messages,
@@ -85,7 +93,7 @@ export class IcebreakerService {
       await this.usage.log({
         workspaceId: input.workspaceId,
         customerId: input.customerId ?? null,
-        provider: 'openai',
+        provider: result.provider,
         model: result.model,
         operation: 'icebreaker',
         inputTokens: result.inputTokens,
@@ -106,10 +114,10 @@ export class IcebreakerService {
       await this.usage.log({
         workspaceId: input.workspaceId,
         customerId: input.customerId ?? null,
-        provider: 'openai',
-        model: 'gpt-4o-mini',
+        provider: routing.vendor,
+        model: routing.model,
         operation: 'icebreaker',
-        byok: false,
+        byok: routing.byok,
         status: 'error',
         error: err?.message ?? String(err),
       });

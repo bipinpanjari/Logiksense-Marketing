@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SearchItemDetailDialog } from "@/components/scraper/search-item-detail-dialog";
 import { getScraperJob, ScraperJobRow, SearchItem } from "@/lib/scraper";
 import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
+import { useAiDigestFlight } from "@/hooks/use-ai-digest-flight";
 
 function asList(v: string[] | string | null | undefined): string[] {
   if (!v) return [];
@@ -63,6 +64,9 @@ export default function ScraperJobDetailPage() {
     return () => clearInterval(t);
   }, [jobRunning]);
 
+  const flightJobs = useMemo(() => (data?.job ? [data.job] : []), [data?.job]);
+  const { markFlight, isInFlight } = useAiDigestFlight(flightJobs);
+
   if (loading && !data) return <p className="text-sm text-muted-foreground">Loading job...</p>;
   if (error) return <p className="text-sm text-destructive">{error}</p>;
   if (!data) return null;
@@ -87,6 +91,8 @@ export default function ScraperJobDetailPage() {
                 <div className="min-w-0 flex-1">
                   <JobAiDigestActions
                     job={job}
+                    digestInFlight={isInFlight(job.id, job)}
+                    onDigestFlightStarted={markFlight}
                     onDone={async () => {
                       setError("");
                       await load();
