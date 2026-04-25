@@ -142,13 +142,19 @@ export function BusinessIntelBody({
           <p className="mb-2 text-xs text-muted-foreground">
             Attributes from the Maps place panel (accessibility, services, plus codes, etc.).
           </p>
-          <div className="max-h-56 overflow-y-auto rounded-lg border border-border/60">
-            <table className="w-full text-xs">
+          <div className="table-wrap max-h-56">
+            <table className="data-table min-w-[360px] text-xs [&_thead_th]:normal-case [&_thead_th]:tracking-normal">
+              <thead>
+                <tr>
+                  <th className="w-[32%]">Attribute</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
               <tbody>
                 {attrEntries.map(([k, v]) => (
-                  <tr key={k} className="border-b border-border/40 last:border-0">
-                    <td className="w-[32%] px-2 py-1.5 align-top font-mono text-[10px] text-muted-foreground">{humanizeAttrKey(k)}</td>
-                    <td className="px-2 py-1.5 align-top text-foreground/90">{v}</td>
+                  <tr key={k}>
+                    <td className="align-top font-mono text-[10px] text-muted-foreground">{humanizeAttrKey(k)}</td>
+                    <td className="align-top text-foreground/90">{v}</td>
                   </tr>
                 ))}
               </tbody>

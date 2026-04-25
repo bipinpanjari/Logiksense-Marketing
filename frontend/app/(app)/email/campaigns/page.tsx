@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { createCampaign, listCampaigns } from "@/lib/marketing-email";
 import { cn } from "@/lib/utils";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function EmailCampaignsPage() {
   const [query, setQuery] = useState("");
@@ -72,27 +75,42 @@ export default function EmailCampaignsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Email Campaigns</h1>
-          <p className="text-sm text-muted-foreground">Manage campaigns with deliverability and performance controls.</p>
-        </div>
-        <div className="flex w-full max-w-2xl gap-2">
-          <Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
-          <Input placeholder="New campaign name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <Button onClick={onCreateCampaign} disabled={saving || !newName.trim()}>
-            {saving ? "Creating..." : "Create"}
-          </Button>
+    <PageShell>
+      <PageHeader
+        title="Email campaigns"
+        description="Manage campaigns with deliverability and performance controls."
+        action={
           <Link href="/email/calendar" className={cn(buttonVariants({ variant: "outline" }))}>
-            Open Calendar
+            Calendar
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Campaign Search</CardTitle>
+          <CardTitle className="text-base">New campaign</CardTitle>
+          <CardDescription>Optional first send date — leave empty to create a draft.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full space-y-1.5 sm:w-auto sm:min-w-[11rem]">
+            <span className="text-xs font-medium text-muted-foreground">Schedule</span>
+            <Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Name</span>
+            <Input placeholder="Campaign name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          </div>
+          <Button className="w-full sm:w-auto" onClick={onCreateCampaign} disabled={saving || !newName.trim()}>
+            {saving ? "Creating..." : "Create"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Campaign search</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="relative max-w-lg">
@@ -104,41 +122,40 @@ export default function EmailCampaignsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Campaign List</CardTitle>
+          <CardTitle className="text-base">All campaigns</CardTitle>
           <CardDescription>Operational view for outbound execution and optimization.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? <p className="mb-3 text-sm text-muted-foreground">Loading campaigns...</p> : null}
-          {error ? <p className="mb-3 text-sm text-destructive">{error}</p> : null}
-          <div className="overflow-auto">
-            <table className="w-full min-w-[760px] text-sm">
+          <div className="table-wrap">
+            <table className="data-table min-w-[760px]">
               <thead>
-                <tr className="border-b">
-                  <th className="px-3 py-2 text-left font-medium">Campaign</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Audience</th>
-                  <th className="px-3 py-2 text-left font-medium">Scheduled</th>
-                  <th className="px-3 py-2 text-left font-medium">Open Rate</th>
-                  <th className="px-3 py-2 text-left font-medium">Click Rate</th>
+                <tr>
+                  <th className="pr-4">Campaign</th>
+                  <th className="pr-4">Status</th>
+                  <th className="pr-4">Audience</th>
+                  <th className="pr-4">Scheduled</th>
+                  <th className="pr-4">Open rate</th>
+                  <th className="pr-4">Click rate</th>
                 </tr>
               </thead>
               <tbody>
                 {campaigns.map((campaign) => (
-                  <tr key={campaign.id} className="border-b">
-                    <td className="px-3 py-2 font-medium">
+                  <tr key={campaign.id}>
+                    <td className="pr-4 font-medium">
                       <Link href={`/email/campaigns/${campaign.id}`} className="underline-offset-4 hover:underline">
                         {campaign.name}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="pr-4">
                       <Badge variant={campaign.status === "active" || campaign.status === "running" ? "success" : "secondary"}>
                         {campaign.status}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2">{campaign.audience.toLocaleString()}</td>
-                    <td className="px-3 py-2">{campaign.scheduledAt}</td>
-                    <td className="px-3 py-2">{campaign.openRate ? `${campaign.openRate}%` : "-"}</td>
-                    <td className="px-3 py-2">{campaign.clickRate ? `${campaign.clickRate}%` : "-"}</td>
+                    <td className="pr-4">{campaign.audience.toLocaleString()}</td>
+                    <td className="pr-4">{campaign.scheduledAt}</td>
+                    <td className="pr-4">{campaign.openRate ? `${campaign.openRate}%` : "-"}</td>
+                    <td className="pr-4">{campaign.clickRate ? `${campaign.clickRate}%` : "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -146,7 +163,7 @@ export default function EmailCampaignsPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 

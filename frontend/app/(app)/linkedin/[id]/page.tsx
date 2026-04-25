@@ -16,6 +16,9 @@ import {
   startLinkedInCampaign,
   updateLinkedInCampaign,
 } from "@/lib/linkedin";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 interface MessageStep {
   step?: number;
@@ -107,30 +110,48 @@ export default function LinkedInCampaignDetailPage() {
     }
   }
 
-  if (loading && !data) return <p className="text-sm text-muted-foreground">Loading...</p>;
-  if (error && !data) return <p className="text-sm text-destructive">{error}</p>;
+  if (loading && !data) {
+    return (
+      <PageShell>
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </PageShell>
+    );
+  }
+  if (error && !data) {
+    return (
+      <PageShell>
+        <Callout variant="destructive">{error}</Callout>
+      </PageShell>
+    );
+  }
   if (!data) return null;
   const { campaign, sequences, messages } = data;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{campaign.name}</h1>
-          <p className="text-sm text-muted-foreground">{campaign.account_email || "no account"} · {campaign.location || "any location"}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/linkedin"><Button variant="outline">Back</Button></Link>
-          {campaign.status === "running" ? (
-            <Button variant="outline" onClick={onPause} disabled={busy}>Pause</Button>
-          ) : (
-            <Button onClick={onStart} disabled={busy}>Start</Button>
-          )}
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={campaign.name}
+        description={`${campaign.account_email || "No account"} · ${campaign.location || "Any location"}`}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/linkedin">
+              <Button variant="outline">Back</Button>
+            </Link>
+            {campaign.status === "running" ? (
+              <Button variant="outline" onClick={onPause} disabled={busy}>
+                Pause
+              </Button>
+            ) : (
+              <Button onClick={onStart} disabled={busy}>
+                Start
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {error && data ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="info">{message}</Callout> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Status" value={<Badge>{campaign.status}</Badge>} />
@@ -186,29 +207,29 @@ export default function LinkedInCampaignDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Prospects ({sequences.length})</CardTitle></CardHeader>
         <CardContent>
-          <div className="overflow-auto">
-            <table className="w-full min-w-[900px] text-sm">
+          <div className="table-wrap">
+            <table className="data-table min-w-[900px]">
               <thead>
-                <tr className="border-b">
-                  <th className="px-3 py-2 text-left font-medium">Name</th>
-                  <th className="px-3 py-2 text-left font-medium">Company</th>
-                  <th className="px-3 py-2 text-left font-medium">Step</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Next send</th>
+                <tr>
+                  <th className="pr-4">Name</th>
+                  <th className="pr-4">Company</th>
+                  <th className="pr-4">Step</th>
+                  <th className="pr-4">Status</th>
+                  <th className="pr-4">Next send</th>
                 </tr>
               </thead>
               <tbody>
                 {sequences.map((s) => (
-                  <tr key={s.id} className="border-b">
-                    <td className="px-3 py-2">{[s.first_name, s.last_name].filter(Boolean).join(" ") || "-"}</td>
-                    <td className="px-3 py-2">{s.company || "-"}</td>
-                    <td className="px-3 py-2">{s.sequence_step}</td>
-                    <td className="px-3 py-2">
+                  <tr key={s.id}>
+                    <td className="pr-4">{[s.first_name, s.last_name].filter(Boolean).join(" ") || "-"}</td>
+                    <td className="pr-4">{s.company || "-"}</td>
+                    <td className="pr-4">{s.sequence_step}</td>
+                    <td className="pr-4">
                       <Badge variant={s.status === "replied" ? "success" : s.status === "failed" ? "outline" : "secondary"}>
                         {s.status}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2">{s.next_send_at ? new Date(s.next_send_at).toLocaleString() : "-"}</td>
+                    <td className="pr-4">{s.next_send_at ? new Date(s.next_send_at).toLocaleString() : "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -243,7 +264,7 @@ export default function LinkedInCampaignDetailPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 

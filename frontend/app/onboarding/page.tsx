@@ -10,6 +10,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Callout } from "@/components/ui/callout";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -99,11 +100,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 p-6 flex items-start justify-center">
-      <Card className="w-full max-w-2xl">
+    <div className="flex min-h-screen items-start justify-center bg-gradient-to-b from-background via-background to-muted/25 p-6 md:items-center md:py-10">
+      <Card className="w-full max-w-2xl shadow-md">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl">Workspace Onboarding</CardTitle>
+            <CardTitle className="text-page-title">Workspace onboarding</CardTitle>
             <CardDescription>Complete all steps, review, then submit once.</CardDescription>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={logout}>
@@ -121,16 +122,16 @@ export default function OnboardingPage() {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4" />
+            <Callout variant="destructive" className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
-            </div>
+            </Callout>
           )}
           {success && (
-            <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
-              <CheckCircle className="h-4 w-4" />
+            <Callout variant="success" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 shrink-0" />
               <span>{success}</span>
-            </div>
+            </Callout>
           )}
 
           {step === 1 && (
@@ -213,7 +214,7 @@ export default function OnboardingPage() {
                 <div>Domain: <span className="font-semibold">{domain || "-"}</span></div>
                 <div>Provider: <span className="font-semibold">{selectedProvider}</span></div>
               </div>
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-amber-200/80 bg-amber-50/80 p-3 text-sm dark:border-amber-900/40 dark:bg-amber-950/30">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-caution-border/90 bg-caution-bg/90 p-3 text-sm">
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4"

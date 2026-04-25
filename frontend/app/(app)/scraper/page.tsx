@@ -19,6 +19,9 @@ import {
   runSearchProfile,
   updateSearchProfile,
 } from "@/lib/scraper";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 interface ProfileForm {
   name: string;
@@ -208,14 +211,11 @@ export default function ScraperPage() {
   const globalKill = !!status?.globalKillSwitch;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Search Profiles</h1>
-        <p className="text-sm text-muted-foreground">
-          Define reusable Google Maps searches and optional cron schedules. Results are extracted, enriched with
-          website emails, and promoted to leads automatically.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Search profiles"
+        description="Define reusable Google Maps searches and optional cron schedules. Results are extracted, enriched with website emails, and promoted to leads automatically."
+      />
 
       {globalKill ? (
         <Card className="border-destructive/60">
@@ -230,13 +230,13 @@ export default function ScraperPage() {
         </Card>
       ) : null}
 
-      <Card className={tosRequired ? "border-amber-500/60" : undefined}>
+      <Card className={tosRequired ? "border-caution-border/70" : undefined}>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Terms of Service & Kill-switch</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {tosRequired ? (
-            <div className="rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+            <div className="rounded-lg border border-caution-border/70 bg-caution-bg/40 p-3 text-sm">
               <p className="font-medium">Before enabling scraping, review and accept the scraping ToS.</p>
               <p className="mt-2 text-muted-foreground">
                 Scraping public Google Maps and company websites may be subject to third-party terms. You are
@@ -263,10 +263,10 @@ export default function ScraperPage() {
         </CardContent>
       </Card>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="info">{message}</Callout> : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/15 px-4 py-3">
         <Button onClick={openCreate} disabled={tosRequired || globalKill}>New profile</Button>
         <Button variant="outline" onClick={() => setAdhocOpen(true)} disabled={tosRequired || globalKill}>
           Ad-hoc scrape
@@ -286,29 +286,29 @@ export default function ScraperPage() {
           ) : profiles.length === 0 ? (
             <p className="text-sm text-muted-foreground">No profiles yet. Create one to start scraping.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[820px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[820px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Business Type</th>
-                    <th className="px-3 py-2 text-left font-medium">Location</th>
-                    <th className="px-3 py-2 text-left font-medium">Limit</th>
-                    <th className="px-3 py-2 text-left font-medium">Cron</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">Actions</th>
+                  <tr>
+                    <th className="pr-4">Name</th>
+                    <th className="pr-4">Business type</th>
+                    <th className="pr-4">Location</th>
+                    <th className="pr-4">Limit</th>
+                    <th className="pr-4">Cron</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {profiles.map((p) => (
-                    <tr key={p.id} className="border-b">
-                      <td className="px-3 py-2">{p.name}</td>
-                      <td className="px-3 py-2">{p.business_type}</td>
-                      <td className="px-3 py-2">{[p.city, p.country].filter(Boolean).join(", ") || "-"}</td>
-                      <td className="px-3 py-2">{p.target_limit}</td>
-                      <td className="px-3 py-2">{p.schedule_cron || "-"}</td>
-                      <td className="px-3 py-2">{p.is_active ? "Active" : "Paused"}</td>
-                      <td className="px-3 py-2">
+                    <tr key={p.id}>
+                      <td className="pr-4">{p.name}</td>
+                      <td className="pr-4">{p.business_type}</td>
+                      <td className="pr-4">{[p.city, p.country].filter(Boolean).join(", ") || "-"}</td>
+                      <td className="pr-4">{p.target_limit}</td>
+                      <td className="pr-4">{p.schedule_cron || "-"}</td>
+                      <td className="pr-4">{p.is_active ? "Active" : "Paused"}</td>
+                      <td className="pr-4">
                         <div className="flex flex-wrap gap-1">
                           <Button size="sm" onClick={() => onRunProfile(p.id)} disabled={busy || tosRequired || globalKill}>
                             Run
@@ -388,6 +388,6 @@ export default function ScraperPage() {
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

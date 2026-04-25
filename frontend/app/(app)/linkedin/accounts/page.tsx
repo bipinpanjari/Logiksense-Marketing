@@ -18,6 +18,9 @@ import {
   pauseLinkedInAccount,
   resumeLinkedInAccount,
 } from "@/lib/linkedin";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function statusVariant(status: LinkedInAccount["status"]) {
   switch (status) {
@@ -153,27 +156,31 @@ export default function LinkedInAccountsPage() {
   const globalKill = !!status?.globalKillSwitch;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">LinkedIn accounts</h1>
-        <p className="text-sm text-muted-foreground">
-          Pair LinkedIn accounts to run outreach campaigns. Passwords are encrypted with AES-256-GCM via the vault;
-          sessions are rotated to cookies after first login.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Forgot your LinkedIn password?{" "}
-          <a
-            className="underline underline-offset-4"
-            href="https://www.linkedin.com/uas/request-password-reset"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Reset it on LinkedIn
-          </a>
-          , then use <span className="font-medium text-foreground">Pair account</span> again with the same email and
-          your new password. We never know or reset your LinkedIn password for you.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="LinkedIn accounts"
+        description={
+          <>
+            <p>
+              Pair LinkedIn accounts to run outreach campaigns. Passwords are encrypted with AES-256-GCM via the vault;
+              sessions rotate to cookies after first login.
+            </p>
+            <p className="mt-3">
+              Forgot your LinkedIn password?{" "}
+              <a
+                className="font-medium text-foreground underline underline-offset-4"
+                href="https://www.linkedin.com/uas/request-password-reset"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Reset it on LinkedIn
+              </a>
+              , then use <span className="font-medium text-foreground">Pair account</span> again with the same email and
+              your new password.
+            </p>
+          </>
+        }
+      />
 
       {globalKill ? (
         <Card className="border-destructive/60">
@@ -184,11 +191,11 @@ export default function LinkedInAccountsPage() {
         </Card>
       ) : null}
 
-      <Card className={tosRequired ? "border-amber-500/60" : undefined}>
+      <Card className={tosRequired ? "border-caution-border/70" : undefined}>
         <CardHeader className="pb-2"><CardTitle className="text-base">Terms of Service & Kill-switch</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {tosRequired ? (
-            <div className="rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+            <div className="rounded-lg border border-caution-border/70 bg-caution-bg/40 p-3 text-sm">
               <p className="font-medium">Before running LinkedIn outreach, accept the automation ToS.</p>
               <p className="mt-2 text-muted-foreground">
                 LinkedIn's User Agreement prohibits unauthorized scraping and automation. Operating accounts you do not
@@ -213,10 +220,10 @@ export default function LinkedInAccountsPage() {
         </CardContent>
       </Card>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="info">{message}</Callout> : null}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-muted/15 px-4 py-3">
         <Button onClick={() => setOpen(true)} disabled={tosRequired || globalKill}>Pair account</Button>
       </div>
 
@@ -228,34 +235,40 @@ export default function LinkedInAccountsPage() {
           ) : accounts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No accounts yet.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[900px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Email</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">Today</th>
-                    <th className="px-3 py-2 text-left font-medium">Hour</th>
-                    <th className="px-3 py-2 text-left font-medium">Week</th>
-                    <th className="px-3 py-2 text-left font-medium">Last login</th>
-                    <th className="px-3 py-2 text-left font-medium">Actions</th>
+                  <tr>
+                    <th className="pr-4">Email</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">Today</th>
+                    <th className="pr-4">Hour</th>
+                    <th className="pr-4">Week</th>
+                    <th className="pr-4">Last login</th>
+                    <th className="pr-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
-                    <tr key={a.id} className="border-b align-top">
-                      <td className="px-3 py-2">
+                    <tr key={a.id} className="align-top">
+                      <td className="pr-4">
                         <p className="font-medium">{a.email}</p>
                         {a.last_error ? <p className="text-xs text-destructive">{a.last_error}</p> : null}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="pr-4">
                         <Badge variant={statusVariant(a.status)}>{a.status}</Badge>
                       </td>
-                      <td className="px-3 py-2">{a.actions_today}/{a.max_per_day}</td>
-                      <td className="px-3 py-2">{a.actions_this_hour}/{a.max_per_hour}</td>
-                      <td className="px-3 py-2">{a.actions_this_week}/{a.max_per_week}</td>
-                      <td className="px-3 py-2">{a.last_login_at ? new Date(a.last_login_at).toLocaleString() : "-"}</td>
-                      <td className="px-3 py-2">
+                      <td className="pr-4">
+                        {a.actions_today}/{a.max_per_day}
+                      </td>
+                      <td className="pr-4">
+                        {a.actions_this_hour}/{a.max_per_hour}
+                      </td>
+                      <td className="pr-4">
+                        {a.actions_this_week}/{a.max_per_week}
+                      </td>
+                      <td className="pr-4">{a.last_login_at ? new Date(a.last_login_at).toLocaleString() : "-"}</td>
+                      <td className="pr-4">
                         <div className="flex flex-wrap gap-1">
                           {a.status === "active" ? (
                             <Button size="sm" variant="outline" onClick={() => onPause(a.id)}>Pause</Button>
@@ -323,6 +336,6 @@ export default function LinkedInAccountsPage() {
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

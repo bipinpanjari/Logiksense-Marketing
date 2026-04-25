@@ -94,7 +94,7 @@ export function WebsiteDigestSection({
                         </Badge>
                       ) : null}
                       {p.likelyNotFound ? (
-                        <Badge variant="outline" className="h-5 text-[10px] font-normal text-amber-800 dark:text-amber-200">
+                        <Badge variant="outline" className="h-5 text-[10px] font-normal text-caution-fg">
                           Likely 404 / thin
                         </Badge>
                       ) : null}
@@ -179,7 +179,7 @@ function DigestChunkRow({ chunk }: { chunk: WebsiteDigestChunk }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="break-all font-mono text-[11px] font-medium text-foreground">{label}</span>
             {chunk.looksLikeNotFound ? (
-              <Badge variant="outline" className="h-5 text-[10px] font-normal text-amber-800 dark:text-amber-200">
+              <Badge variant="outline" className="h-5 text-[10px] font-normal text-caution-fg">
                 Likely 404 / thin page
               </Badge>
             ) : (

@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 import { listSequences } from "@/lib/marketing-email";
 
 export default function SequencesPage() {
@@ -29,46 +32,47 @@ export default function SequencesPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Email Sequences</h1>
-          <p className="text-sm text-muted-foreground">Automated multi-step outbound flows with status control.</p>
-        </div>
-        <Link href="/email/new" className={cn(buttonVariants({ variant: "default" }))}>
-          Build New Sequence
-        </Link>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Email sequences"
+        description="Automated multi-step outbound flows with status control."
+        action={
+          <Link href="/email/new" className={cn(buttonVariants({ variant: "default" }))}>
+            New sequence
+          </Link>
+        }
+      />
+
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Sequence List</CardTitle>
+          <CardTitle className="text-base">All sequences</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? <p className="mb-3 text-sm text-muted-foreground">Loading sequences...</p> : null}
-          {error ? <p className="mb-3 text-sm text-destructive">{error}</p> : null}
-          <div className="overflow-auto">
-            <table className="w-full min-w-[720px] text-sm">
+          <div className="table-wrap">
+            <table className="data-table min-w-[720px]">
               <thead>
-                <tr className="border-b">
-                  <th className="px-3 py-2 text-left font-medium">Sequence</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Steps</th>
-                  <th className="px-3 py-2 text-left font-medium">Active Leads</th>
+                <tr>
+                  <th className="pr-4">Sequence</th>
+                  <th className="pr-4">Status</th>
+                  <th className="pr-4">Steps</th>
+                  <th className="pr-4">Active leads</th>
                 </tr>
               </thead>
               <tbody>
                 {sequences.map((seq) => (
-                  <tr key={seq.id} className="border-b">
-                    <td className="px-3 py-2 font-medium">
+                  <tr key={seq.id}>
+                    <td className="pr-4 font-medium">
                       <Link href={`/email/sequences/${seq.id}`} className="underline-offset-4 hover:underline">
                         {seq.name}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="pr-4">
                       <Badge variant={seq.status === "active" ? "success" : "secondary"}>{seq.status}</Badge>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="pr-4">
                       {Array.isArray(seq.steps)
                         ? seq.steps.length
                         : typeof seq.steps === "string"
@@ -77,7 +81,7 @@ export default function SequencesPage() {
                           })()
                         : 0}
                     </td>
-                    <td className="px-3 py-2">{seq.active_leads ?? 0}</td>
+                    <td className="pr-4">{seq.active_leads ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -85,7 +89,7 @@ export default function SequencesPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 

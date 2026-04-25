@@ -310,11 +310,11 @@ function DnsTileView({
 }) {
   const badge =
     tile.status === "ok"
-      ? "bg-emerald-500/15 text-emerald-700"
+      ? "bg-positive-bg text-positive-fg"
       : tile.status === "fail"
-      ? "bg-rose-500/15 text-rose-700"
+      ? "bg-destructive/12 text-destructive"
       : tile.status === "checking"
-      ? "bg-amber-500/15 text-amber-700"
+      ? "bg-caution-bg text-caution-fg"
       : "bg-muted text-muted-foreground";
   const label =
     tile.status === "ok" ? "Passing" : tile.status === "fail" ? "Missing" : tile.status === "checking" ? "Checking..." : "Unknown";

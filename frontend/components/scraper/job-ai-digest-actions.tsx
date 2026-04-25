@@ -73,14 +73,14 @@ function digestAiColumnState(job: ScraperJobRow): {
   if (a >= t) {
     return {
       icon: CheckCircle2,
-      iconClassName: "text-emerald-600 dark:text-emerald-400",
+      iconClassName: "text-success",
       title: `AI research brief complete — ${a} of ${t} businesses`,
     };
   }
   if (a > 0) {
     return {
       icon: Layers,
-      iconClassName: "text-amber-600 dark:text-amber-400",
+      iconClassName: "text-warning",
       title: `Partially briefed — ${a} of ${t} businesses have a rep-style brief`,
     };
   }
@@ -105,11 +105,11 @@ function StatusChip({
   tone: "neutral" | "success" | "warning" | "muted" | "pending";
 }) {
   const tones = {
-    neutral: "border-border/70 bg-card text-foreground shadow-sm",
-    success: "border-emerald-500/25 bg-emerald-500/[0.07] text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100",
-    warning: "border-amber-500/30 bg-amber-500/[0.08] text-amber-950 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-50",
+    neutral: "border-border/70 bg-card text-foreground shadow-xs",
+    success: "border-positive-border/80 bg-positive-bg text-positive-fg",
+    warning: "border-caution-border/80 bg-caution-bg text-caution-fg",
     muted: "border-border/60 bg-muted/25 text-muted-foreground",
-    pending: "border-primary/20 bg-primary/[0.06] text-foreground",
+    pending: "border-primary/25 bg-primary/[0.07] text-foreground",
   } as const;
 
   return (
@@ -171,7 +171,7 @@ export function JobAiDigestBadge({ job }: { job: ScraperJobRow }) {
     return (
       <StatusChip
         icon={CheckCircle2}
-        iconClassName="text-emerald-600 dark:text-emerald-400"
+        iconClassName="text-success"
         label="Research brief complete"
         sub={`${a} of ${t} · rep-style research briefs complete`}
         tone="success"
@@ -182,7 +182,7 @@ export function JobAiDigestBadge({ job }: { job: ScraperJobRow }) {
     return (
       <StatusChip
         icon={Layers}
-        iconClassName="text-amber-600 dark:text-amber-400"
+        iconClassName="text-warning"
         label="Partially briefed"
         sub={`${a} of ${t} businesses · finish the rest below`}
         tone="warning"

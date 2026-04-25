@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ActionCount, AuditRow, auditCounts, listAuditLog } from "@/lib/compliance";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function AuditLogPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -36,13 +39,10 @@ export default function AuditLogPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Audit log</h1>
-        <p className="text-sm text-muted-foreground">Every mutation in this workspace, admin-only.</p>
-      </div>
+    <PageShell>
+      <PageHeader title="Audit log" description="Every mutation in this workspace — admin only." />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       <Card>
         <CardHeader>
@@ -55,7 +55,7 @@ export default function AuditLogPage() {
           ) : (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               {counts.map((c) => (
-                <div key={c.action} className="rounded-md border p-3 text-sm">
+                <div key={c.action} className="rounded-xl border border-border/80 bg-card/50 p-3 text-sm shadow-xs">
                   <div className="truncate font-medium">{c.action}</div>
                   <div className="text-xs text-muted-foreground">{c.count} events</div>
                 </div>
@@ -88,35 +88,33 @@ export default function AuditLogPage() {
           ) : rows.length === 0 ? (
             <div className="text-sm text-muted-foreground">No events.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[640px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">When</th>
-                    <th className="py-2 pr-4">Actor</th>
-                    <th className="py-2 pr-4">Action</th>
-                    <th className="py-2 pr-4">Entity</th>
+                    <th className="pr-4">When</th>
+                    <th className="pr-4">Actor</th>
+                    <th className="pr-4">Action</th>
+                    <th className="pr-4">Entity</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.id} className="border-t align-top">
-                      <td className="py-2 pr-4 whitespace-nowrap text-xs text-muted-foreground">
+                    <tr key={r.id} className="align-top">
+                      <td className="whitespace-nowrap pr-4 text-xs text-muted-foreground">
                         {new Date(r.created_at).toLocaleString()}
                       </td>
-                      <td className="py-2 pr-4 max-w-[200px] truncate">
-                        {r.actor_email || r.performed_by || "system"}
-                      </td>
-                      <td className="py-2 pr-4">
+                      <td className="max-w-[200px] truncate pr-4">{r.actor_email || r.performed_by || "system"}</td>
+                      <td className="pr-4">
                         <Badge variant="outline">{r.action ?? "n/a"}</Badge>
                       </td>
-                      <td className="py-2 pr-4 text-xs">
+                      <td className="pr-4 text-xs">
                         <div>
                           {r.entity_type ?? ""}
                           {r.entity_id ? ` · ${r.entity_id.slice(0, 8)}…` : ""}
                         </div>
                         {r.details && (
-                          <pre className="mt-1 max-h-32 overflow-auto rounded bg-muted/50 p-1 text-[11px] leading-tight">
+                          <pre className="mt-1 max-h-32 overflow-auto rounded-lg border border-border/60 bg-muted/40 p-2 text-[11px] leading-tight">
                             {JSON.stringify(r.details, null, 2)}
                           </pre>
                         )}
@@ -129,6 +127,6 @@ export default function AuditLogPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

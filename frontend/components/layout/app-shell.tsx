@@ -86,10 +86,8 @@ const navGroups = [
   },
 ];
 
-/** Sidebar width; keep in sync with `lg:pl-[232px]` below (Tailwind needs literal class strings). */
-const SIDEBAR_W = "w-[232px]";
+const SIDEBAR_W = "w-[var(--sidebar-width)]";
 
-/** One active link per section: paths like `/scraper` must not also match `/scraper/jobs` (use longest match). */
 function isNavItemActive(pathname: string, itemHref: string, siblings: string[]) {
   const matches = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   if (!matches(itemHref)) return false;
@@ -115,7 +113,7 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       className={cn(
-        "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-none transition-colors",
+        "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-nav leading-none transition-colors",
         active
           ? "bg-primary/[0.09] text-foreground shadow-[inset_2px_0_0_0_hsl(var(--primary))]"
           : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
@@ -142,7 +140,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-3 py-4" aria-label="Main">
       {navGroups.map((group) => (
         <div key={group.label} className="space-y-0.5">
-          <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/90">{group.label}</p>
+          <p className="mb-2 px-2.5 text-nav-group uppercase text-muted-foreground/90">{group.label}</p>
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const siblingHrefs = group.items.map((i) => i.href);
@@ -230,7 +228,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </button>
       {menuOpen ? (
         <div
-          className="absolute bottom-full left-3 right-3 z-30 mb-2 space-y-0.5 rounded-xl border border-border/80 bg-popover p-1.5 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
+          className="absolute bottom-full left-3 right-3 z-30 mb-2 space-y-0.5 rounded-xl border border-border/80 bg-popover p-1.5 shadow-lg ring-1 ring-foreground/5"
           role="menu"
         >
           <Link
@@ -273,7 +271,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-background lg:pl-[232px]">
+    <div className="min-h-screen bg-background lg:pl-[var(--sidebar-width)]">
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/80 bg-background/90 px-4 backdrop-blur-md lg:hidden">
         <Button
@@ -305,7 +303,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border/80 bg-card shadow-[4px_0_24px_-8px_rgb(0_0_0/0.08)] transition-transform duration-200 ease-out dark:shadow-[4px_0_24px_-8px_rgb(0_0_0/0.35)]",
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border/80 bg-card shadow-sidebar transition-transform duration-200 ease-out",
           SIDEBAR_W,
           "lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -313,7 +311,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/80 px-4 lg:h-[60px] lg:px-4">
           <Link href="/dashboard" className="min-w-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-            <p className="truncate text-[15px] font-semibold tracking-tight text-foreground">{workspaceName}</p>
+            <p className="truncate text-section-title text-foreground">{workspaceName}</p>
             <p className="truncate text-[11px] font-medium text-muted-foreground">Workspace</p>
           </Link>
           <Button
@@ -333,8 +331,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {userBlock}
       </aside>
 
-      <div className="mx-auto max-w-[1600px]">
-        <main className="min-h-[calc(100vh-3.5rem)] p-4 md:min-h-screen md:p-8 lg:min-h-screen">{children}</main>
+      <div className="mx-auto max-w-app">
+        <main className="min-h-[calc(100vh-3.5rem)] p-4 md:min-h-screen md:p-8 lg:min-h-screen lg:p-10">{children}</main>
       </div>
     </div>
   );

@@ -99,7 +99,7 @@ export function AiPersonalizationInstructionsDialog({
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {success ? (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
+            <p className="text-sm text-positive-fg">{success}</p>
           ) : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button

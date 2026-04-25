@@ -10,6 +10,9 @@ import { SearchItemDetailDialog } from "@/components/scraper/search-item-detail-
 import { getScraperJob, ScraperJobRow, SearchItem } from "@/lib/scraper";
 import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
 import { useAiDigestFlight } from "@/hooks/use-ai-digest-flight";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function asList(v: string[] | string | null | undefined): string[] {
   if (!v) return [];
@@ -67,8 +70,20 @@ export default function ScraperJobDetailPage() {
   const flightJobs = useMemo(() => (data?.job ? [data.job] : []), [data?.job]);
   const { markFlight, isInFlight } = useAiDigestFlight(flightJobs);
 
-  if (loading && !data) return <p className="text-sm text-muted-foreground">Loading job...</p>;
-  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (loading && !data) {
+    return (
+      <PageShell>
+        <p className="text-sm text-muted-foreground">Loading job…</p>
+      </PageShell>
+    );
+  }
+  if (error && !data) {
+    return (
+      <PageShell>
+        <Callout variant="destructive">{error}</Callout>
+      </PageShell>
+    );
+  }
   if (!data) return null;
 
   const { job, items } = data;
@@ -78,47 +93,48 @@ export default function ScraperJobDetailPage() {
     : 0;
   const startedMs = t0 > 0 ? tick - t0 : 0;
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-2">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Scraper job</h1>
-            <p className="text-sm text-muted-foreground">{job.query}</p>
-          </div>
-          {job.status === "completed" ? (
-            <div className="rounded-xl border border-border/80 bg-gradient-to-b from-muted/40 to-muted/10 px-4 py-3.5 shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
-              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6 lg:gap-8">
-                <div className="min-w-0 flex-1">
-                  <JobAiDigestActions
-                    job={job}
-                    digestInFlight={isInFlight(job.id, job)}
-                    onDigestFlightStarted={markFlight}
-                    onDone={async () => {
-                      setError("");
-                      await load();
-                    }}
-                    onError={setError}
-                  />
-                </div>
-                {typeof job.digest_items_total === "number" && job.digest_items_total > 0 ? (
-                  <p className="shrink-0 text-xs leading-snug text-muted-foreground sm:max-w-[220px] sm:text-right sm:leading-relaxed">
-                    <span className="font-medium text-foreground">
-                      {job.digest_items_ai ?? 0}/{job.digest_items_total}
-                    </span>{" "}
-                    businesses have an AI research summary (Maps, contacts, crawl).
-                  </p>
-                ) : null}
-              </div>
+    <PageShell>
+      <PageHeader
+        title="Scraper job"
+        description={job.query}
+        action={
+          <Link href="/scraper/jobs">
+            <Button variant="outline">Back</Button>
+          </Link>
+        }
+      />
+
+      {job.status === "completed" ? (
+        <div className="rounded-xl border border-border/80 bg-gradient-to-b from-muted/40 to-muted/10 px-4 py-3.5 shadow-sm ring-1 ring-foreground/5">
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6 lg:gap-8">
+            <div className="min-w-0 flex-1">
+              <JobAiDigestActions
+                job={job}
+                digestInFlight={isInFlight(job.id, job)}
+                onDigestFlightStarted={markFlight}
+                onDone={async () => {
+                  setError("");
+                  await load();
+                }}
+                onError={setError}
+              />
             </div>
-          ) : null}
+            {typeof job.digest_items_total === "number" && job.digest_items_total > 0 ? (
+              <p className="shrink-0 text-xs leading-snug text-muted-foreground sm:max-w-[220px] sm:text-right sm:leading-relaxed">
+                <span className="font-medium text-foreground">
+                  {job.digest_items_ai ?? 0}/{job.digest_items_total}
+                </span>{" "}
+                businesses have an AI research summary (Maps, contacts, crawl).
+              </p>
+            ) : null}
+          </div>
         </div>
-        <Link href="/scraper/jobs">
-          <Button variant="outline">Back</Button>
-        </Link>
-      </div>
+      ) : null}
+
+      {error && data ? <Callout variant="destructive">{error}</Callout> : null}
 
       {running ? (
-        <div className="space-y-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-foreground">
+        <div className="space-y-3 rounded-lg border border-caution-border/70 bg-caution-bg/50 px-4 py-3 text-sm text-foreground">
           {/* <p>
             Live browser: Google Maps discovery, then website passes to find emails. A full run can take{" "}
             <span className="font-medium">5–20+ minutes</span>. Progress below updates about every 5s.
@@ -137,7 +153,7 @@ export default function ScraperJobDetailPage() {
               {typeof job.progress_pct === "number" ? (
                 <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-amber-500/90 transition-all duration-500"
+                    className="h-full rounded-full bg-chart-5/90 transition-all duration-500"
                     style={{ width: `${Math.min(100, Math.max(0, job.progress_pct))}%` }}
                   />
                 </div>
@@ -185,16 +201,16 @@ export default function ScraperJobDetailPage() {
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No items yet.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[900px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Business</th>
-                    <th className="px-3 py-2 text-left font-medium">Category</th>
-                    <th className="px-3 py-2 text-left font-medium">Website</th>
-                    <th className="px-3 py-2 text-left font-medium">Emails</th>
-                    <th className="px-3 py-2 text-left font-medium">Phone</th>
-                    <th className="px-3 py-2 text-left font-medium">Lead</th>
+                  <tr>
+                    <th className="pr-4">Business</th>
+                    <th className="pr-4">Category</th>
+                    <th className="pr-4">Website</th>
+                    <th className="pr-4">Emails</th>
+                    <th className="pr-4">Phone</th>
+                    <th className="pr-4">Lead</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,7 +222,7 @@ export default function ScraperJobDetailPage() {
                         key={it.id}
                         role="button"
                         tabIndex={0}
-                        className="cursor-pointer border-b align-top transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="cursor-pointer align-top transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => setDetailItem(it)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -215,12 +231,12 @@ export default function ScraperJobDetailPage() {
                           }
                         }}
                       >
-                        <td className="px-3 py-2">
+                        <td className="pr-4">
                           <p className="font-medium">{it.business_name || "-"}</p>
                           <p className="text-xs text-muted-foreground">{[it.city, it.country].filter(Boolean).join(", ")}</p>
                         </td>
-                        <td className="px-3 py-2">{it.category || "-"}</td>
-                        <td className="px-3 py-2">
+                        <td className="pr-4">{it.category || "-"}</td>
+                        <td className="pr-4">
                           {it.website_url ? (
                             <a
                               className="underline-offset-4 hover:underline"
@@ -235,9 +251,9 @@ export default function ScraperJobDetailPage() {
                             "-"
                           )}
                         </td>
-                        <td className="px-3 py-2">{emails.length ? emails.join(", ") : "-"}</td>
-                        <td className="px-3 py-2">{it.phone || phones[0] || "-"}</td>
-                        <td className="px-3 py-2">
+                        <td className="pr-4">{emails.length ? emails.join(", ") : "-"}</td>
+                        <td className="pr-4">{it.phone || phones[0] || "-"}</td>
+                        <td className="pr-4">
                           {it.lead_id ? (
                             <Badge variant="success">{it.lead_status || "created"}</Badge>
                           ) : (
@@ -255,7 +271,7 @@ export default function ScraperJobDetailPage() {
       </Card>
 
       <SearchItemDetailDialog item={detailItem} open={detailItem != null} onOpenChange={(o) => !o && setDetailItem(null)} />
-    </div>
+    </PageShell>
   );
 }
 

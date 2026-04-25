@@ -8,8 +8,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center">
-        <p className="text-sm text-muted-foreground">Loading session...</p>
+      <div className="grid min-h-screen place-items-center bg-background px-4">
+        <p className="text-sm text-muted-foreground">Loading session…</p>
       </div>
     );
   }

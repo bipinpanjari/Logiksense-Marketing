@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { getSequence, updateSequence } from "@/lib/marketing-email";
 import { SequenceBasicsCard } from "@/components/email/sequence-basics-card";
 import { SequenceStepsPanel, type SequenceStep } from "@/components/email/sequence-steps-panel";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function SequenceEditPage() {
   const params = useParams<{ id: string }>();
@@ -93,26 +96,34 @@ export default function SequenceEditPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (loading) {
+    return (
+      <PageShell>
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </PageShell>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <PageShell>
+      <PageHeader
+        eyebrow={
+          <span className="flex min-w-0 items-center gap-2">
             <Link href="/email/sequences" className="underline-offset-4 hover:underline">
               Sequences
             </Link>
             <span>/</span>
             <span className="truncate">{name || "Edit"}</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Edit sequence</h1>
-          <p className="text-sm text-muted-foreground">Reorder touches, adjust waits and subjects, then save.</p>
-        </div>
-        <Button onClick={save} disabled={saving || !name.trim() || steps.length === 0}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
-      </div>
+          </span>
+        }
+        title="Edit sequence"
+        description="Reorder touches, adjust waits and subjects, then save."
+        action={
+          <Button onClick={save} disabled={saving || !name.trim() || steps.length === 0}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        }
+      />
 
       <SequenceBasicsCard
         name={name}
@@ -139,7 +150,15 @@ export default function SequenceEditPage() {
         onMoveStep={moveStep}
       />
 
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-    </div>
+      {message ? (
+        <Callout
+          variant={
+            message.includes("Failed") ? "destructive" : message === "Saved" ? "success" : "info"
+          }
+        >
+          {message}
+        </Callout>
+      ) : null}
+    </PageShell>
   );
 }

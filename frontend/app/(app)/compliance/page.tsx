@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 import {
   GdprRequestRow,
   listGdprRequests,
@@ -87,16 +90,14 @@ export default function CompliancePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Privacy & compliance</h1>
-        <p className="text-sm text-muted-foreground">
-          GDPR Article 15 (data export) and Article 17 (right to erasure) controls for this workspace.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Privacy & compliance"
+        description="GDPR Article 15 (data export) and Article 17 (right to erasure) controls for this workspace."
+      />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">{message}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <Card>
         <CardHeader>
@@ -148,25 +149,31 @@ export default function CompliancePage() {
           ) : requests.length === 0 ? (
             <div className="text-sm text-muted-foreground">No requests yet.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[720px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">When</th>
-                    <th className="py-2 pr-4">Kind</th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2 pr-4">Completed</th>
-                    <th className="py-2 pr-4">Error</th>
+                    <th className="pr-4">When</th>
+                    <th className="pr-4">Kind</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">Completed</th>
+                    <th className="pr-4">Error</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((r) => (
-                    <tr key={r.id} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">{new Date(r.requested_at).toLocaleString()}</td>
-                      <td className="py-2 pr-4"><Badge variant="outline">{r.kind}</Badge></td>
-                      <td className="py-2 pr-4"><Badge variant={r.status === "completed" ? "success" : "outline"}>{r.status}</Badge></td>
-                      <td className="py-2 pr-4 whitespace-nowrap text-xs text-muted-foreground">{r.completed_at ? new Date(r.completed_at).toLocaleString() : "-"}</td>
-                      <td className="py-2 pr-4 text-xs text-destructive">{r.error ?? ""}</td>
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap pr-4">{new Date(r.requested_at).toLocaleString()}</td>
+                      <td className="pr-4">
+                        <Badge variant="outline">{r.kind}</Badge>
+                      </td>
+                      <td className="pr-4">
+                        <Badge variant={r.status === "completed" ? "success" : "outline"}>{r.status}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap pr-4 text-xs text-muted-foreground">
+                        {r.completed_at ? new Date(r.completed_at).toLocaleString() : "-"}
+                      </td>
+                      <td className="pr-4 text-xs text-destructive">{r.error ?? ""}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,6 +182,6 @@ export default function CompliancePage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { listScraperJobs, ScraperJobRow } from "@/lib/scraper";
 import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
 import { useAiDigestFlight } from "@/hooks/use-ai-digest-flight";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function statusVariant(status: ScraperJobRow["status"]) {
   switch (status) {
@@ -54,23 +57,23 @@ export default function ScraperJobsPage() {
   }, [anyInFlight, load]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Scraper jobs</h1>
-          <p className="text-sm text-muted-foreground">Every scrape execution and its outcome.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
-          </Button>
-          <Link href="/scraper">
-            <Button>Back to profiles</Button>
-          </Link>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Scraper jobs"
+        description="Every scrape execution and its outcome."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={load} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh"}
+            </Button>
+            <Link href="/scraper">
+              <Button variant="outline">Profiles</Button>
+            </Link>
+          </div>
+        }
+      />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       <Card>
         <CardHeader>
@@ -82,29 +85,29 @@ export default function ScraperJobsPage() {
           ) : jobs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No jobs yet.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[1100px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[1100px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Query</th>
-                    <th className="px-3 py-2 text-left font-medium">Location</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">AI digest</th>
-                    <th className="px-3 py-2 text-left font-medium">Leads</th>
-                    <th className="px-3 py-2 text-left font-medium">w/ Email</th>
-                    <th className="px-3 py-2 text-left font-medium">Created</th>
-                    <th className="px-3 py-2 text-left font-medium"></th>
+                  <tr>
+                    <th className="pr-4">Query</th>
+                    <th className="pr-4">Location</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">AI digest</th>
+                    <th className="pr-4">Leads</th>
+                    <th className="pr-4">w/ email</th>
+                    <th className="pr-4">Created</th>
+                    <th className="pr-4" />
                   </tr>
                 </thead>
                 <tbody>
                   {jobs.map((job) => (
-                    <tr key={job.id} className="border-b">
-                      <td className="px-3 py-2">{job.query}</td>
-                      <td className="px-3 py-2">{[job.city, job.country].filter(Boolean).join(", ") || "-"}</td>
-                      <td className="px-3 py-2">
+                    <tr key={job.id}>
+                      <td className="pr-4">{job.query}</td>
+                      <td className="pr-4">{[job.city, job.country].filter(Boolean).join(", ") || "-"}</td>
+                      <td className="pr-4">
                         <Badge variant={statusVariant(job.status)}>{job.status}</Badge>
                       </td>
-                      <td className="px-3 py-2 align-middle">
+                      <td className="pr-4 align-middle">
                         <JobAiDigestActions
                           job={job}
                           digestInFlight={isInFlight(job.id, job)}
@@ -117,10 +120,10 @@ export default function ScraperJobsPage() {
                           compact
                         />
                       </td>
-                      <td className="px-3 py-2">{job.leads_found}</td>
-                      <td className="px-3 py-2">{job.leads_with_email}</td>
-                      <td className="px-3 py-2">{new Date(job.created_at).toLocaleString()}</td>
-                      <td className="px-3 py-2">
+                      <td className="pr-4">{job.leads_found}</td>
+                      <td className="pr-4">{job.leads_with_email}</td>
+                      <td className="pr-4">{new Date(job.created_at).toLocaleString()}</td>
+                      <td className="pr-4">
                         <Link href={`/scraper/jobs/${job.id}`}>
                           <Button size="sm" variant="outline">Open</Button>
                         </Link>
@@ -133,6 +136,6 @@ export default function ScraperJobsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 import {
   AI_PERSONALIZATION_INSTRUCTIONS_MAX_CHARS,
   type AiLlmVendor,
@@ -226,33 +229,35 @@ export default function AiSettingsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-4xl">
+      <PageShell narrow>
         <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
+      </PageShell>
     );
   }
   if (!settings) {
     return (
-      <div className="mx-auto w-full max-w-4xl">
-        <p className="text-sm text-destructive">Could not load AI settings.</p>
-      </div>
+      <PageShell narrow>
+        <Callout variant="destructive">Could not load AI settings.</Callout>
+      </PageShell>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">AI &amp; enrichment</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Icebreakers, research briefs, and optional email enrichment.{" "}
-          <Link href="/ai/usage" className="text-foreground underline underline-offset-4">
-            View usage
-          </Link>
-        </p>
-      </div>
+    <PageShell narrow>
+      <PageHeader
+        title="AI & enrichment"
+        description={
+          <>
+            Icebreakers, research briefs, and optional email enrichment.{" "}
+            <Link href="/ai/usage" className="font-medium text-foreground underline underline-offset-4">
+              View usage
+            </Link>
+          </>
+        }
+      />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {message ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{message}</p> : null}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <div className="grid gap-6">
         <Card>
@@ -394,10 +399,8 @@ export default function AiSettingsPage() {
 
               <div
                 className={cn(
-                  "rounded-md px-3 py-2 text-xs",
-                  status?.ok
-                    ? "bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
-                    : "bg-amber-500/10 text-amber-950 dark:text-amber-100",
+                  "rounded-md border px-3 py-2 text-xs",
+                  status?.ok ? "border-positive-border/60 bg-positive-bg text-positive-fg" : "border-caution-border/60 bg-caution-bg text-caution-fg",
                 )}
               >
                 {status?.label}
@@ -587,6 +590,6 @@ export default function AiSettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }

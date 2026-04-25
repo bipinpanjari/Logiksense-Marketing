@@ -1,14 +1,13 @@
 import { EmailSettingsForm } from "@/components/email/email-settings-form";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function EmailSettingsPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Email Settings</h1>
-        <p className="text-sm text-muted-foreground">Connect and validate your SMTP provider.</p>
-      </div>
+    <PageShell narrow>
+      <PageHeader title="Email settings" description="Connect and validate your SMTP provider." />
       <EmailSettingsForm />
-    </div>
+    </PageShell>
   );
 }
 

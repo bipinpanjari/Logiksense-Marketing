@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCampaigns, updateCampaign } from "@/lib/marketing-email";
 import { getTimeZoneOptions } from "@/lib/timezones";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import { CALENDAR_STATUS_LEGEND } from "@/lib/calendar-status-styles";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 type CampaignEvent = {
   id: string;
@@ -210,13 +213,6 @@ export default function EmailCalendarPage() {
   const todayKey = toDateKey(new Date());
   const isPanelOpen = Boolean(selectedDate);
 
-  const statusLegend = [
-    { key: "active", className: "bg-green-500/10 text-green-700 border-green-200" },
-    { key: "scheduled", className: "bg-blue-500/10 text-blue-700 border-blue-200" },
-    { key: "paused", className: "bg-amber-500/10 text-amber-700 border-amber-200" },
-    { key: "draft", className: "bg-slate-500/10 text-slate-700 border-slate-200" },
-  ];
-
   const weekDays = useMemo(() => {
     const d = new Date(monthCursor);
     const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
@@ -263,11 +259,11 @@ export default function EmailCalendarPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Campaign Calendar</h1>
-        <p className="text-sm text-muted-foreground">Google-like planner with month/week/day views, drag-drop scheduling, quick actions, and timezone support.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Campaign calendar"
+        description="Month, week, and day views with drag-drop scheduling, quick actions, and timezone support."
+      />
 
       <div className={`grid gap-6 ${isPanelOpen ? "xl:grid-cols-[1fr_340px]" : "grid-cols-1"}`}>
         <Card>
@@ -459,7 +455,7 @@ export default function EmailCalendarPage() {
 
             <div className="flex flex-wrap items-center gap-2 pb-2">
               <span className="text-xs font-semibold text-muted-foreground">Status legend:</span>
-              {statusLegend.map((s) => (
+              {CALENDAR_STATUS_LEGEND.map((s) => (
                 <span key={s.key} className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${s.className}`}>
                   {s.key}
                 </span>
@@ -651,7 +647,7 @@ export default function EmailCalendarPage() {
           </Card>
         ) : null}
       </div>
-    </div>
+    </PageShell>
   );
 }
 

@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 import {
   getInboundWebhookToken,
   listInboundReplies,
@@ -84,17 +87,19 @@ export default function InboxPage() {
   const webhookUrl = token ? apiUrl(`/inbound/${token}`) : "";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-        <p className="text-sm text-muted-foreground">
-          Inbound replies matched against your sent emails. Replies automatically move the lead to
-          &quot;Replied&quot; and pause any active sequence enrollment.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Inbox"
+        description={
+          <>
+            Inbound replies matched against your sent emails. Replies automatically move the lead to &quot;Replied&quot;
+            and pause any active sequence enrollment.
+          </>
+        }
+      />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">{message}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <Card>
         <CardHeader>
@@ -122,35 +127,35 @@ export default function InboxPage() {
           ) : rows.length === 0 ? (
             <div className="text-sm text-muted-foreground">No inbound replies yet.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[640px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">When</th>
-                    <th className="py-2 pr-4">From</th>
-                    <th className="py-2 pr-4">Subject</th>
-                    <th className="py-2 pr-4">Class</th>
-                    <th className="py-2 pr-4">Match</th>
+                    <th className="pr-4">When</th>
+                    <th className="pr-4">From</th>
+                    <th className="pr-4">Subject</th>
+                    <th className="pr-4">Class</th>
+                    <th className="pr-4">Match</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr
                       key={r.id}
-                      className="cursor-pointer border-t hover:bg-muted"
+                      className="cursor-pointer"
                       onClick={() => setSelected(r)}
                     >
-                      <td className="py-2 pr-4 whitespace-nowrap">
+                      <td className="pr-4 whitespace-nowrap">
                         {new Date(r.received_at).toLocaleString()}
                       </td>
-                      <td className="py-2 pr-4 max-w-[220px] truncate">{r.from_email}</td>
-                      <td className="py-2 pr-4 max-w-[320px] truncate">{r.subject ?? "(no subject)"}</td>
-                      <td className="py-2 pr-4">
+                      <td className="max-w-[220px] truncate pr-4">{r.from_email}</td>
+                      <td className="max-w-[320px] truncate pr-4">{r.subject ?? "(no subject)"}</td>
+                      <td className="pr-4">
                         <Badge variant={classificationVariant(r.classification)}>
                           {r.classification ?? "neutral"}
                         </Badge>
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="pr-4">
                         {r.matched ? <Badge variant="success">matched</Badge> : <Badge variant="outline">unmatched</Badge>}
                       </td>
                     </tr>
@@ -163,11 +168,14 @@ export default function InboxPage() {
       </Card>
 
       {selected && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={() => setSelected(null)}>
-          <div className="h-full w-full max-w-xl overflow-y-auto border-l bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-40 flex justify-end bg-foreground/25 backdrop-blur-[2px]" onClick={() => setSelected(null)}>
+          <div
+            className="h-full w-full max-w-xl overflow-y-auto border-l border-border/80 bg-card p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-lg font-semibold break-all">{selected.subject ?? "(no subject)"}</div>
+                <div className="text-section-title break-all">{selected.subject ?? "(no subject)"}</div>
                 <div className="text-sm text-muted-foreground">From: {selected.from_email}</div>
                 {selected.to_email && <div className="text-sm text-muted-foreground">To: {selected.to_email}</div>}
                 <div className="text-xs text-muted-foreground mt-1">
@@ -176,12 +184,12 @@ export default function InboxPage() {
               </div>
               <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
             </div>
-            <div className="mt-4 whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-border/80 bg-muted/30 p-4 text-sm leading-relaxed">
               {selected.snippet ?? "(no body captured)"}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

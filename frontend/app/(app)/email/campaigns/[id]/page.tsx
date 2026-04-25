@@ -11,6 +11,9 @@ import {
   launchCampaignAction,
   pauseCampaignAction,
 } from "@/lib/marketing-email";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 interface CampaignDetail {
   campaign: {
@@ -95,9 +98,27 @@ export default function CampaignDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading campaign...</p>;
-  if (error) return <p className="text-sm text-destructive">{error}</p>;
-  if (!data) return <p className="text-sm text-muted-foreground">Not found</p>;
+  if (loading) {
+    return (
+      <PageShell>
+        <p className="text-sm text-muted-foreground">Loading campaign…</p>
+      </PageShell>
+    );
+  }
+  if (error) {
+    return (
+      <PageShell>
+        <Callout variant="destructive">{error}</Callout>
+      </PageShell>
+    );
+  }
+  if (!data) {
+    return (
+      <PageShell>
+        <Callout variant="warning">Campaign not found.</Callout>
+      </PageShell>
+    );
+  }
 
   const c = data.campaign;
   const openRate = c.sent_count > 0 ? ((c.opened_count / c.sent_count) * 100).toFixed(1) : "0.0";
@@ -105,35 +126,39 @@ export default function CampaignDetailPage() {
   const bounceRate = c.sent_count > 0 ? ((c.bounced_count / c.sent_count) * 100).toFixed(1) : "0.0";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <PageShell>
+      <PageHeader
+        eyebrow={
+          <span className="flex items-center gap-2">
             <Link href="/email/campaigns" className="underline-offset-4 hover:underline">
               Campaigns
             </Link>
             <span>/</span>
-            <span>{c.name}</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
-          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="truncate">{c.name}</span>
+          </span>
+        }
+        title={c.name}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
             <Badge variant={c.status === "running" ? "success" : "secondary"}>{c.status}</Badge>
             {c.template_name ? <span>Template: {c.template_name}</span> : null}
             {c.segment_name ? <span>Segment: {c.segment_name}</span> : null}
+          </span>
+        }
+        action={
+          <div className="flex gap-2">
+            {c.status === "running" ? (
+              <Button variant="outline" onClick={onPause} disabled={working}>
+                {working ? "…" : "Pause"}
+              </Button>
+            ) : (
+              <Button onClick={onLaunch} disabled={working || !c.template_id}>
+                {working ? "…" : "Launch"}
+              </Button>
+            )}
           </div>
-        </div>
-        <div className="flex gap-2">
-          {c.status === "running" ? (
-            <Button variant="outline" onClick={onPause} disabled={working}>
-              {working ? "..." : "Pause"}
-            </Button>
-          ) : (
-            <Button onClick={onLaunch} disabled={working || !c.template_id}>
-              {working ? "..." : "Launch"}
-            </Button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {c.error ? (
         <Card>
@@ -159,45 +184,47 @@ export default function CampaignDetailPage() {
           <CardTitle className="text-base">Recent sends</CardTitle>
           <CardDescription>Last 200 sends for this campaign.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-auto">
-          <table className="w-full min-w-[840px] text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2 text-left font-medium">Subject</th>
-                <th className="px-3 py-2 text-left font-medium">Sent</th>
-                <th className="px-3 py-2 text-left font-medium">Opened</th>
-                <th className="px-3 py-2 text-left font-medium">Clicked</th>
-                <th className="px-3 py-2 text-left font-medium">Bounced</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.logs.map((row) => (
-                <tr key={row.id} className="border-b">
-                  <td className="px-3 py-2">
-                    <Badge variant={row.status === "sent" ? "success" : row.status === "bounced" ? "outline" : "secondary"}>
-                      {row.status}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">{row.subject ?? "-"}</td>
-                  <td className="px-3 py-2">{fmt(row.sent_at)}</td>
-                  <td className="px-3 py-2">{fmt(row.opened_at)}</td>
-                  <td className="px-3 py-2">{fmt(row.clicked_at)}</td>
-                  <td className="px-3 py-2">{row.bounced_at ? `${fmt(row.bounced_at)} (${row.bounce_reason ?? ""})` : "-"}</td>
-                </tr>
-              ))}
-              {data.logs.length === 0 ? (
+        <CardContent>
+          <div className="table-wrap">
+            <table className="data-table min-w-[840px]">
+              <thead>
                 <tr>
-                  <td className="px-3 py-6 text-center text-sm text-muted-foreground" colSpan={6}>
-                    No sends yet. Launch the campaign to start delivery.
-                  </td>
+                  <th className="pr-4">Status</th>
+                  <th className="pr-4">Subject</th>
+                  <th className="pr-4">Sent</th>
+                  <th className="pr-4">Opened</th>
+                  <th className="pr-4">Clicked</th>
+                  <th className="pr-4">Bounced</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.logs.map((row) => (
+                  <tr key={row.id}>
+                    <td className="pr-4">
+                      <Badge variant={row.status === "sent" ? "success" : row.status === "bounced" ? "outline" : "secondary"}>
+                        {row.status}
+                      </Badge>
+                    </td>
+                    <td className="pr-4">{row.subject ?? "-"}</td>
+                    <td className="pr-4">{fmt(row.sent_at)}</td>
+                    <td className="pr-4">{fmt(row.opened_at)}</td>
+                    <td className="pr-4">{fmt(row.clicked_at)}</td>
+                    <td className="pr-4">{row.bounced_at ? `${fmt(row.bounced_at)} (${row.bounce_reason ?? ""})` : "-"}</td>
+                  </tr>
+                ))}
+                {data.logs.length === 0 ? (
+                  <tr>
+                    <td className="py-8 text-center text-sm text-muted-foreground" colSpan={6}>
+                      No sends yet. Launch the campaign to start delivery.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 

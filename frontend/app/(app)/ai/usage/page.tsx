@@ -10,6 +10,9 @@ import {
   getAiUsageRecent,
   getAiUsageSummary,
 } from "@/lib/ai";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function formatCents(cents: string | null): string {
   if (cents == null) return "—";
@@ -59,30 +62,22 @@ export default function AiUsagePage() {
   const totalTokens = summary.reduce((acc, row) => acc + (row.total_tokens ?? 0), 0);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">AI &amp; enrichment usage</h1>
-          <p className="text-sm text-muted-foreground">
-            AI generation, email verification, and enrichment usage for this workspace. Organization and
-            workspace keys are labeled so you can see what ran where.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {[7, 30, 90].map((d) => (
-            <Button
-              key={d}
-              variant={days === d ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDays(d)}
-            >
-              {d}d
-            </Button>
-          ))}
-        </div>
-      </div>
+    <PageShell narrow>
+      <PageHeader
+        title="AI & enrichment usage"
+        description="AI generation, email verification, and enrichment usage for this workspace. Organization and workspace keys are labeled so you can see what ran where."
+        action={
+          <div className="flex gap-2">
+            {[7, 30, 90].map((d) => (
+              <Button key={d} variant={days === d ? "default" : "outline"} size="sm" onClick={() => setDays(d)}>
+                {d}d
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -107,33 +102,33 @@ export default function AiUsagePage() {
           ) : summary.length === 0 ? (
             <div className="text-sm text-muted-foreground">No AI usage in this window.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[800px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">Service</th>
-                    <th className="py-2 pr-4">Model</th>
-                    <th className="py-2 pr-4">Operation</th>
-                    <th className="py-2 pr-4">Billing</th>
-                    <th className="py-2 pr-4">Calls</th>
-                    <th className="py-2 pr-4">Tokens</th>
-                    <th className="py-2 pr-4">Spend</th>
+                    <th className="pr-4">Service</th>
+                    <th className="pr-4">Model</th>
+                    <th className="pr-4">Operation</th>
+                    <th className="pr-4">Billing</th>
+                    <th className="pr-4">Calls</th>
+                    <th className="pr-4">Tokens</th>
+                    <th className="pr-4">Spend</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summary.map((row, idx) => (
-                    <tr key={idx} className="border-t">
-                      <td className="py-2 pr-4">{providerLabel(row.provider)}</td>
-                      <td className="py-2 pr-4">{row.model}</td>
-                      <td className="py-2 pr-4">{row.operation}</td>
-                      <td className="py-2 pr-4">
+                    <tr key={idx}>
+                      <td className="pr-4">{providerLabel(row.provider)}</td>
+                      <td className="pr-4">{row.model}</td>
+                      <td className="pr-4">{row.operation}</td>
+                      <td className="pr-4">
                         <Badge variant={row.byok ? "secondary" : "outline"}>
                           {row.byok ? "Your key" : "Organization"}
                         </Badge>
                       </td>
-                      <td className="py-2 pr-4">{row.calls}</td>
-                      <td className="py-2 pr-4">{row.total_tokens ?? 0}</td>
-                      <td className="py-2 pr-4">{formatCents(row.cost_cents)}</td>
+                      <td className="pr-4">{row.calls}</td>
+                      <td className="pr-4">{row.total_tokens ?? 0}</td>
+                      <td className="pr-4">{formatCents(row.cost_cents)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -151,31 +146,29 @@ export default function AiUsagePage() {
           ) : recent.length === 0 ? (
             <div className="text-sm text-muted-foreground">No recent AI calls.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[900px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">When</th>
-                    <th className="py-2 pr-4">Service</th>
-                    <th className="py-2 pr-4">Model</th>
-                    <th className="py-2 pr-4">Operation</th>
-                    <th className="py-2 pr-4">Tokens</th>
-                    <th className="py-2 pr-4">Cost</th>
-                    <th className="py-2 pr-4">Status</th>
+                    <th className="pr-4">When</th>
+                    <th className="pr-4">Service</th>
+                    <th className="pr-4">Model</th>
+                    <th className="pr-4">Operation</th>
+                    <th className="pr-4">Tokens</th>
+                    <th className="pr-4">Cost</th>
+                    <th className="pr-4">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recent.map((row) => (
-                    <tr key={row.id} className="border-t">
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {new Date(row.created_at).toLocaleString()}
-                      </td>
-                      <td className="py-2 pr-4">{providerLabel(row.provider)}</td>
-                      <td className="py-2 pr-4">{row.model}</td>
-                      <td className="py-2 pr-4">{row.operation}</td>
-                      <td className="py-2 pr-4">{row.total_tokens ?? 0}</td>
-                      <td className="py-2 pr-4">{formatCents(row.cost_cents)}</td>
-                      <td className="py-2 pr-4">
+                    <tr key={row.id}>
+                      <td className="whitespace-nowrap pr-4">{new Date(row.created_at).toLocaleString()}</td>
+                      <td className="pr-4">{providerLabel(row.provider)}</td>
+                      <td className="pr-4">{row.model}</td>
+                      <td className="pr-4">{row.operation}</td>
+                      <td className="pr-4">{row.total_tokens ?? 0}</td>
+                      <td className="pr-4">{formatCents(row.cost_cents)}</td>
+                      <td className="pr-4">
                         {row.status === "ok" ? (
                           <Badge variant="success">Ok</Badge>
                         ) : (
@@ -190,6 +183,6 @@ export default function AiUsagePage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

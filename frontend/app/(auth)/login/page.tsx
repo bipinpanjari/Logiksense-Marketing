@@ -8,6 +8,7 @@ import { setSession } from "@/lib/auth-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthCard } from "@/components/auth/auth-card";
+import { Callout } from "@/components/ui/callout";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function LoginPage() {
             required
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Callout variant="destructive">{error}</Callout> : null}
         <Button className="w-full" type="submit" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign In"}
         </Button>

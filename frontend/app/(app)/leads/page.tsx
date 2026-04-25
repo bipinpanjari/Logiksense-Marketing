@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Lead, LeadImportMapping, LeadImportPreviewResult, LeadImportResult, bulkDeleteLeads, bulkUpdateLeads, confirmLeadImport, createLead, deleteLead, getLeadImportHistory, getLeadStats, listLeads, previewLeadImport, updateLead } from "@/lib/leads";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function LeadsPage() {
   const [query, setQuery] = useState("");
@@ -202,11 +205,14 @@ export default function LeadsPage() {
   const allSelected = leads.length > 0 && selectedIds.length === leads.length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Leads CRM</h1>
-        <p className="text-sm text-muted-foreground">Workspace-scoped lead management with search, bulk actions, and lifecycle controls.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Leads CRM"
+        description="Workspace-scoped lead management with search, bulk actions, and lifecycle controls."
+      />
+
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -293,30 +299,30 @@ export default function LeadsPage() {
               <div><p className="text-xs text-muted-foreground">Errors</p><p className="text-lg font-semibold text-destructive">{importResult.errorCount}</p></div>
             </div>
           ) : null}
-          <div className="max-h-56 overflow-auto rounded-lg border border-border/80">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/40">
-                <tr className="border-b border-border/70">
-                  <th className="px-4 py-2.5 text-left font-semibold text-foreground/90">Time</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-foreground/90">Rows</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-foreground/90">Success</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-foreground/90">Errors</th>
+          <div className="table-wrap max-h-56">
+            <table className="data-table min-w-[520px] text-xs">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Rows</th>
+                  <th>Success</th>
+                  <th>Errors</th>
                 </tr>
               </thead>
               <tbody>
                 {importHistory.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-center text-sm text-muted-foreground" colSpan={4}>
+                    <td className="py-6 text-center text-sm text-muted-foreground" colSpan={4}>
                       No imports yet. Use `Import Leads` to run your first extraction.
                     </td>
                   </tr>
                 ) : (
                   importHistory.map((item) => (
-                    <tr key={item.id} className="border-b border-border/70">
-                      <td className="px-4 py-2.5">{new Date(item.created_at).toLocaleString()}</td>
-                      <td className="px-4 py-2.5">{Number(item.details?.totalRows || 0)}</td>
-                      <td className="px-4 py-2.5">{Number(item.details?.successCount || 0)}</td>
-                      <td className="px-4 py-2.5">{Number(item.details?.errorCount || 0)}</td>
+                    <tr key={item.id}>
+                      <td>{new Date(item.created_at).toLocaleString()}</td>
+                      <td>{Number(item.details?.totalRows || 0)}</td>
+                      <td>{Number(item.details?.successCount || 0)}</td>
+                      <td>{Number(item.details?.errorCount || 0)}</td>
                     </tr>
                   ))
                 )}
@@ -331,16 +337,14 @@ export default function LeadsPage() {
           <CardTitle className="text-base">Lead List</CardTitle>
         </CardHeader>
         <CardContent>
-          {error ? <p className="mb-3 text-sm text-destructive">{error}</p> : null}
-          {message ? <p className="mb-3 text-sm text-muted-foreground">{message}</p> : null}
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading leads...</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[980px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[980px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">
+                  <tr>
+                    <th className="w-10">
                       <input
                         type="checkbox"
                         checked={allSelected}
@@ -349,19 +353,19 @@ export default function LeadsPage() {
                         }}
                       />
                     </th>
-                    <th className="px-3 py-2 text-left font-medium">Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Email</th>
-                    <th className="px-3 py-2 text-left font-medium">Phone</th>
-                    <th className="px-3 py-2 text-left font-medium">Company</th>
-                    <th className="px-3 py-2 text-left font-medium">Tags</th>
-                    <th className="px-3 py-2 text-left font-medium">Suppressed</th>
-                    <th className="px-3 py-2 text-left font-medium">Actions</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Company</th>
+                    <th>Tags</th>
+                    <th>Suppressed</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leads.map((lead) => (
-                    <tr key={lead.id} className="border-b">
-                      <td className="px-3 py-2">
+                    <tr key={lead.id}>
+                      <td>
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(lead.id)}
@@ -372,13 +376,13 @@ export default function LeadsPage() {
                           }}
                         />
                       </td>
-                      <td className="px-3 py-2">{`${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "-"}</td>
-                      <td className="px-3 py-2">{lead.email}</td>
-                      <td className="px-3 py-2">{lead.phone || "-"}</td>
-                      <td className="px-3 py-2">{lead.company || "-"}</td>
-                      <td className="px-3 py-2">{(lead.tags || []).join(", ") || "-"}</td>
-                      <td className="px-3 py-2">{lead.isSuppressed ? "Yes" : "No"}</td>
-                      <td className="px-3 py-2">
+                      <td>{`${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "-"}</td>
+                      <td>{lead.email}</td>
+                      <td>{lead.phone || "-"}</td>
+                      <td>{lead.company || "-"}</td>
+                      <td>{(lead.tags || []).join(", ") || "-"}</td>
+                      <td>{lead.isSuppressed ? "Yes" : "No"}</td>
+                      <td>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => openEdit(lead)}>
                             Edit
@@ -435,8 +439,8 @@ export default function LeadsPage() {
         description="Upload any CSV/XLSX structure, map fields, preview extraction quality, and confirm import."
         maxWidthClassName="max-w-[96vw]"
       >
-        <div className="grid h-[82vh] gap-4 overflow-hidden md:grid-cols-[380px_1fr]">
-          <div className="space-y-3 overflow-auto pr-1">
+        <div className="grid h-[82vh] min-h-0 gap-4 overflow-hidden md:grid-cols-[380px_1fr]">
+          <div className="min-h-0 space-y-3 overflow-auto pr-1">
             <div className="rounded-lg border border-border/80 bg-muted/20 p-3">
               <p className="text-xs font-medium text-muted-foreground">Source File</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -500,45 +504,47 @@ export default function LeadsPage() {
               </Button>
             </div>
           </div>
-          <div className="overflow-auto rounded-lg border border-border/80">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border/80">
             {importPreview ? (
-              <table className="w-full min-w-[860px] text-sm">
-                <thead className="sticky top-0 bg-muted/35">
-                  <tr className="border-b border-border/80">
-                    <th className="px-3 py-2 text-left font-medium">Row</th>
-                    <th className="px-3 py-2 text-left font-medium">First Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Last Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Email</th>
-                    <th className="px-3 py-2 text-left font-medium">Phone</th>
-                    <th className="px-3 py-2 text-left font-medium">Company</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {importPreview.preview.map((row) => (
-                    <tr key={row.row} className="border-b border-border/70">
-                      <td className="px-3 py-2">{row.row}</td>
-                      <td className="px-3 py-2">{row.firstName || "-"}</td>
-                      <td className="px-3 py-2">{row.lastName || "-"}</td>
-                      <td className="px-3 py-2">{row.email || "-"}</td>
-                      <td className="px-3 py-2">{row.phone || "-"}</td>
-                      <td className="px-3 py-2">{row.company || "-"}</td>
-                      <td className={`px-3 py-2 ${row.valid ? "text-emerald-600" : "text-destructive"}`}>
-                        {row.valid ? "Valid" : row.issues.join(", ")}
-                      </td>
+              <div className="table-wrap table-wrap-fill">
+                <table className="data-table min-w-[860px]">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>First Name</th>
+                      <th>Last Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Company</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {importPreview.preview.map((row) => (
+                      <tr key={row.row}>
+                        <td>{row.row}</td>
+                        <td>{row.firstName || "-"}</td>
+                        <td>{row.lastName || "-"}</td>
+                        <td>{row.email || "-"}</td>
+                        <td>{row.phone || "-"}</td>
+                        <td>{row.company || "-"}</td>
+                        <td className={row.valid ? "text-success" : "text-destructive"}>
+                          {row.valid ? "Valid" : row.issues.join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <div className="grid h-full place-items-center p-6 text-sm text-muted-foreground">
+              <div className="grid min-h-0 flex-1 place-items-center p-6 text-sm text-muted-foreground">
                 Upload a file and click Analyze File to generate intelligent mapping + extraction preview.
               </div>
             )}
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
 

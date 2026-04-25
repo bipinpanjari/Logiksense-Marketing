@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSettings, updateSettings } from "@/lib/account";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -64,11 +67,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Workspace preferences that affect your product experience.</p>
-      </div>
+    <PageShell narrow>
+      <PageHeader
+        title="Settings"
+        description="Workspace preferences that affect your product experience."
+      />
+
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <div className="grid gap-6">
         <Card>
@@ -122,9 +128,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-                {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
-
                 <div className="flex items-center justify-end gap-3">
                   <Button type="submit" disabled={saving}>
                     {saving ? "Saving..." : "Save changes"}
@@ -135,7 +138,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

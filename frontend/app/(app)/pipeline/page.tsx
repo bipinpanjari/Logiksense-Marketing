@@ -21,6 +21,10 @@ import {
 } from "@/lib/pipeline";
 import { BusinessIntelBody } from "@/components/research/business-intel-body";
 import { researchModelFromPipelineLead } from "@/lib/business-research-model";
+import { PIPELINE_STAGE_CHIP_CLASS } from "@/lib/pipeline-stage-styles";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function timelineEventTitle(ev: TimelineEvent): string {
   switch (ev.type) {
@@ -60,17 +64,6 @@ function timelineEventSummary(ev: TimelineEvent): string | null {
   }
   return null;
 }
-
-const STAGE_COLOURS: Record<PipelineStage, string> = {
-  new: "bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-900/30 dark:text-zinc-200 dark:border-zinc-800",
-  queued: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900/30 dark:text-slate-200 dark:border-slate-800",
-  sent: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800",
-  opened: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800",
-  clicked: "bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/30 dark:text-teal-200 dark:border-teal-800",
-  replied: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-800",
-  bounced: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-800",
-  unsubscribed: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-800",
-};
 
 export default function PipelinePage() {
   const [board, setBoard] = useState<PipelineBoard | null>(null);
@@ -175,16 +168,13 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-        <p className="text-sm text-muted-foreground">
-          Leads grouped by engagement stage. Pipeline stages update automatically from campaign sends,
-          opens, clicks, replies and bounces.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Pipeline"
+        description="Leads grouped by engagement stage. Stages update automatically from sends, opens, clicks, replies, and bounces."
+      />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading board…</div>
@@ -194,7 +184,7 @@ export default function PipelinePage() {
         <div className="flex snap-x gap-3 overflow-x-auto pb-2">
           {board.columns.map((col) => (
             <div key={col.stage} className="min-w-[260px] w-[260px] flex-shrink-0 snap-start">
-              <div className={`rounded-md border p-3 ${STAGE_COLOURS[col.stage]}`}>
+              <div className={`rounded-md border p-3 ${PIPELINE_STAGE_CHIP_CLASS[col.stage]}`}>
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">{STAGE_LABELS[col.stage]}</div>
                   <Badge variant="outline">{col.count}</Badge>
@@ -238,11 +228,11 @@ export default function PipelinePage() {
       {selected
         ? createPortal(
             <div
-              className="fixed inset-0 z-[100] flex justify-end bg-black/55 backdrop-blur-[2px] overscroll-none"
+              className="fixed inset-0 z-[100] flex justify-end bg-foreground/35 backdrop-blur-[2px] overscroll-none"
               onClick={() => setSelected(null)}
             >
               <div
-                className="flex h-full w-full max-w-full shrink-0 flex-col border-l border-border/80 bg-background shadow-2xl sm:max-w-[min(40rem,calc(100%-0.75rem))] md:max-w-[min(44rem,calc(100%-1rem))] lg:max-w-[min(48rem,calc(100%-1.25rem))]"
+                className="flex h-full w-full max-w-full shrink-0 flex-col border-l border-border/80 bg-card shadow-lg sm:max-w-[min(40rem,calc(100%-0.75rem))] md:max-w-[min(44rem,calc(100%-1rem))] lg:max-w-[min(48rem,calc(100%-1.25rem))]"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
@@ -396,6 +386,6 @@ export default function PipelinePage() {
             document.body,
           )
         : null}
-    </div>
+    </PageShell>
   );
 }

@@ -10,8 +10,8 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-background to-muted/30 p-4">
-      <Card className="w-full max-w-md border-border/70 shadow-lg">
+    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-background via-background to-muted/25 p-4">
+      <Card className="w-full max-w-md border-border/60 shadow-md">
         <CardHeader className="space-y-2 pb-4">
           <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
           <CardDescription className="text-sm">{description}</CardDescription>

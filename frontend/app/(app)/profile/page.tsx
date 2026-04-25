@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { getProfile, updateProfile } from "@/lib/account";
 import { getAccessToken, getStoredWorkspace, setSession } from "@/lib/auth-storage";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -63,11 +66,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your account identity and sign-in email.</p>
-      </div>
+    <PageShell narrow>
+      <PageHeader title="Profile" description="Manage your account identity and sign-in email." />
+
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="success">{message}</Callout> : null}
 
       <Card>
         <CardHeader>
@@ -97,9 +100,6 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
-
               <div className="flex items-center justify-end gap-3">
                 <Button type="submit" disabled={saving}>
                   {saving ? "Saving..." : "Save changes"}
@@ -109,6 +109,6 @@ export default function ProfilePage() {
           ) : null}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

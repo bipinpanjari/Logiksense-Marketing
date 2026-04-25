@@ -51,11 +51,11 @@ export function Dialog({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/45"
+        className="absolute inset-0 bg-foreground/35 backdrop-blur-[2px]"
         onClick={() => onOpenChange(false)}
       />
       <div className="absolute inset-0 flex min-h-full items-start justify-center overflow-y-auto p-4 pt-6 sm:p-6 sm:pt-10 md:pt-14">
-        <div className={`relative w-full ${maxWidthClassName} rounded-xl border bg-card shadow-2xl`}>
+        <div className={`relative w-full ${maxWidthClassName} rounded-xl border border-border/80 bg-card shadow-lg`}>
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div className="space-y-1">
               <h2 className="text-base font-semibold">{title}</h2>

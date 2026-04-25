@@ -19,6 +19,9 @@ import {
   pauseLinkedInCampaign,
   startLinkedInCampaign,
 } from "@/lib/linkedin";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 function statusVariant(status: LinkedInCampaignRow["status"]) {
   switch (status) {
@@ -137,22 +140,24 @@ export default function LinkedInCampaignsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">LinkedIn campaigns</h1>
-          <p className="text-sm text-muted-foreground">Connection requests + DM sequences with per-account rate limits and auto-pause.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/linkedin/accounts">
-            <Button variant="outline">Accounts</Button>
-          </Link>
-          <Button onClick={() => setOpen(true)} disabled={tosRequired || globalKill}>New campaign</Button>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="LinkedIn campaigns"
+        description="Connection requests and DM sequences with per-account rate limits and auto-pause."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/linkedin/accounts">
+              <Button variant="outline">Accounts</Button>
+            </Link>
+            <Button onClick={() => setOpen(true)} disabled={tosRequired || globalKill}>
+              New campaign
+            </Button>
+          </div>
+        }
+      />
 
       {tosRequired || globalKill ? (
-        <Card className={globalKill ? "border-destructive/60" : "border-amber-500/60"}>
+        <Card className={globalKill ? "border-destructive/60" : "border-caution-border/70"}>
           <CardHeader><CardTitle className="text-base">Cannot run campaigns</CardTitle></CardHeader>
           <CardContent className="text-sm">
             {globalKill
@@ -162,8 +167,8 @@ export default function LinkedInCampaignsPage() {
         </Card>
       ) : null}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
+      {message ? <Callout variant="info">{message}</Callout> : null}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Campaigns</CardTitle></CardHeader>
@@ -173,36 +178,38 @@ export default function LinkedInCampaignsPage() {
           ) : campaigns.length === 0 ? (
             <p className="text-sm text-muted-foreground">No campaigns yet.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[1000px] text-sm">
+            <div className="table-wrap">
+              <table className="data-table min-w-[1000px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-medium">Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Account</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
-                    <th className="px-3 py-2 text-left font-medium">Prospects</th>
-                    <th className="px-3 py-2 text-left font-medium">Sent</th>
-                    <th className="px-3 py-2 text-left font-medium">Replies</th>
-                    <th className="px-3 py-2 text-left font-medium">Last run</th>
-                    <th className="px-3 py-2 text-left font-medium">Actions</th>
+                  <tr>
+                    <th className="pr-4">Name</th>
+                    <th className="pr-4">Account</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">Prospects</th>
+                    <th className="pr-4">Sent</th>
+                    <th className="pr-4">Replies</th>
+                    <th className="pr-4">Last run</th>
+                    <th className="pr-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {campaigns.map((c) => (
-                    <tr key={c.id} className="border-b">
-                      <td className="px-3 py-2">
+                    <tr key={c.id}>
+                      <td className="pr-4">
                         <Link className="font-medium underline-offset-4 hover:underline" href={`/linkedin/${c.id}`}>
                           {c.name}
                         </Link>
                         {c.paused_reason ? <p className="text-xs text-muted-foreground">{c.paused_reason}</p> : null}
                       </td>
-                      <td className="px-3 py-2">{c.account_email || "-"}</td>
-                      <td className="px-3 py-2"><Badge variant={statusVariant(c.status)}>{c.status}</Badge></td>
-                      <td className="px-3 py-2">{String(c.sequence_count)}</td>
-                      <td className="px-3 py-2">{String(c.sent_count)}</td>
-                      <td className="px-3 py-2">{String(c.reply_count)}</td>
-                      <td className="px-3 py-2">{c.last_run_at ? new Date(c.last_run_at).toLocaleString() : "-"}</td>
-                      <td className="px-3 py-2">
+                      <td className="pr-4">{c.account_email || "-"}</td>
+                      <td className="pr-4">
+                        <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                      </td>
+                      <td className="pr-4">{String(c.sequence_count)}</td>
+                      <td className="pr-4">{String(c.sent_count)}</td>
+                      <td className="pr-4">{String(c.reply_count)}</td>
+                      <td className="pr-4">{c.last_run_at ? new Date(c.last_run_at).toLocaleString() : "-"}</td>
+                      <td className="pr-4">
                         <div className="flex flex-wrap gap-1">
                           {c.status === "running" ? (
                             <Button size="sm" variant="outline" onClick={() => onPause(c.id)} disabled={busy}>Pause</Button>
@@ -249,6 +256,6 @@ export default function LinkedInCampaignsPage() {
           </div>
         </div>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

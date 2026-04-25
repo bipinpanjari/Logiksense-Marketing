@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createTemplate, listTemplates } from "@/lib/marketing-email";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function EmailTemplatesPage() {
   const [library, setLibrary] = useState<Array<{ id: string; name: string; subject: string; body_html?: string }>>([]);
@@ -59,11 +62,15 @@ export default function EmailTemplatesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Email Templates</h1>
-        <p className="text-sm text-muted-foreground">Reusable templates with personalization variables and consistent tone.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Email templates"
+        description="Reusable templates with personalization variables and a consistent tone."
+      />
+
+      {message ? (
+        <Callout variant={message.includes("Failed") ? "destructive" : "success"}>{message}</Callout>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
         <Card>
@@ -118,7 +125,6 @@ export default function EmailTemplatesPage() {
                 {previewOpen ? "Hide Preview" : "Preview"}
               </Button>
             </div>
-            {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
             {previewOpen ? (
               <div className="space-y-2">
                 <label className="text-sm font-medium">Rendered preview</label>
@@ -135,7 +141,7 @@ export default function EmailTemplatesPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

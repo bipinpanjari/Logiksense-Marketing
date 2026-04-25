@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 import {
   CampaignSummary,
   DashboardKpis,
@@ -54,24 +57,22 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Real email send + engagement data for this workspace.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {[7, 30, 90].map((d) => (
-            <Button key={d} size="sm" variant={days === d ? "default" : "outline"} onClick={() => setDays(d)}>
-              {d}d
-            </Button>
-          ))}
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Analytics"
+        description="Real email send and engagement data for this workspace."
+        action={
+          <div className="flex gap-2">
+            {[7, 30, 90].map((d) => (
+              <Button key={d} size="sm" variant={days === d ? "default" : "outline"} onClick={() => setDays(d)}>
+                {d}d
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
-      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error ? <Callout variant="destructive">{error}</Callout> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Sent" value={loading ? "…" : totals.sent.toLocaleString()} description={`Open rate ${kpis?.openRate ?? 0}%`} />
@@ -103,33 +104,35 @@ export default function AnalyticsPage() {
           {campaigns.length === 0 ? (
             <div className="text-sm text-muted-foreground">No campaigns yet.</div>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-muted-foreground">
+            <div className="table-wrap">
+              <table className="data-table min-w-[760px]">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-4">Campaign</th>
-                    <th className="py-2 pr-4">Status</th>
-                    <th className="py-2 pr-4">Sent</th>
-                    <th className="py-2 pr-4">Opened</th>
-                    <th className="py-2 pr-4">Clicked</th>
-                    <th className="py-2 pr-4">Replied</th>
-                    <th className="py-2 pr-4">Bounced</th>
+                    <th className="pr-4">Campaign</th>
+                    <th className="pr-4">Status</th>
+                    <th className="pr-4">Sent</th>
+                    <th className="pr-4">Opened</th>
+                    <th className="pr-4">Clicked</th>
+                    <th className="pr-4">Replied</th>
+                    <th className="pr-4">Bounced</th>
                   </tr>
                 </thead>
                 <tbody>
                   {campaigns.map((c) => (
-                    <tr key={c.id} className="border-t">
-                      <td className="py-2 pr-4">
-                        <Link href={`/email/campaigns/${c.id}`} className="font-medium hover:underline">
+                    <tr key={c.id}>
+                      <td className="pr-4">
+                        <Link href={`/email/campaigns/${c.id}`} className="font-medium underline-offset-4 hover:underline">
                           {c.name}
                         </Link>
                       </td>
-                      <td className="py-2 pr-4"><Badge variant={c.status === "running" ? "success" : "outline"}>{c.status}</Badge></td>
-                      <td className="py-2 pr-4">{c.sent}</td>
-                      <td className="py-2 pr-4">{c.opened}</td>
-                      <td className="py-2 pr-4">{c.clicked}</td>
-                      <td className="py-2 pr-4">{c.replied}</td>
-                      <td className="py-2 pr-4">{c.bounced}</td>
+                      <td className="pr-4">
+                        <Badge variant={c.status === "running" ? "success" : "outline"}>{c.status}</Badge>
+                      </td>
+                      <td className="pr-4">{c.sent}</td>
+                      <td className="pr-4">{c.opened}</td>
+                      <td className="pr-4">{c.clicked}</td>
+                      <td className="pr-4">{c.replied}</td>
+                      <td className="pr-4">{c.bounced}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -138,7 +141,7 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 
@@ -167,7 +170,7 @@ function DailyChart({ data }: { data: SendsByDay[] }) {
         return (
           <div key={d.day} className="flex flex-1 flex-col items-center gap-1" title={`${label}: ${d.sent} sent · ${d.opened} opened · ${d.clicked} clicked · ${d.bounced} bounced`}>
             <div className="flex w-full flex-col justify-end rounded bg-muted" style={{ height: "100%" }}>
-              <div className="w-full rounded-t bg-emerald-400" style={{ height: `${openedPct}%`, opacity: 0.6 }} />
+              <div className="w-full rounded-t bg-chart-2/75" style={{ height: `${openedPct}%` }} />
               <div className="w-full bg-primary" style={{ height: `${Math.max(0, sentPct - openedPct)}%` }} />
             </div>
             <div className="truncate text-[10px] text-muted-foreground">{label}</div>

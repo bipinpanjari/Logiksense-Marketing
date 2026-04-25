@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { createSequence } from "@/lib/marketing-email";
 import { SequenceBasicsCard } from "@/components/email/sequence-basics-card";
 import { SequenceStepsPanel, type SequenceStep } from "@/components/email/sequence-steps-panel";
+import { Callout } from "@/components/ui/callout";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/page-shell";
 
 export default function NewSequencePage() {
   const router = useRouter();
@@ -94,25 +97,25 @@ export default function NewSequencePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <PageShell>
+      <PageHeader
+        eyebrow={
+          <span className="flex items-center gap-2">
             <Link href="/email/sequences" className="underline-offset-4 hover:underline">
               Sequences
             </Link>
             <span>/</span>
             <span>New</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">New sequence</h1>
-          <p className="text-sm text-muted-foreground">
-            Ordered email touches with wait times between sends — edit the chain on the left, details on the right.
-          </p>
-        </div>
-        <Button onClick={onCreate} disabled={saving || !name.trim() || steps.length === 0} size="default">
-          {saving ? "Creating…" : "Create sequence"}
-        </Button>
-      </div>
+          </span>
+        }
+        title="New sequence"
+        description="Ordered email touches with wait times between sends — edit the chain on the left, details on the right."
+        action={
+          <Button onClick={onCreate} disabled={saving || !name.trim() || steps.length === 0}>
+            {saving ? "Creating…" : "Create sequence"}
+          </Button>
+        }
+      />
 
       <SequenceBasicsCard
         name={name}
@@ -139,7 +142,9 @@ export default function NewSequencePage() {
         onMoveStep={moveStep}
       />
 
-      {message ? <p className="text-sm text-amber-600 dark:text-amber-500">{message}</p> : null}
-    </div>
+      {message ? (
+        <Callout variant={message.includes("Failed") ? "destructive" : "warning"}>{message}</Callout>
+      ) : null}
+    </PageShell>
   );
 }
