@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { HomeGate } from "@/components/marketing/home-gate";
 
 export default function HomePage() {
-  redirect("/dashboard");
+  return <HomeGate />;
 }
-

@@ -10,8 +10,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Logik Sense Marketing",
-  description: "SaaS marketing automation platform",
+  title: {
+    default: "Logik Sense",
+    template: "%s · Logik Sense",
+  },
+  description:
+    "Workspace-based marketing operations: leads, email campaigns and sequences, pipeline, research jobs, LinkedIn tools, AI settings, analytics, and audit-friendly controls.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

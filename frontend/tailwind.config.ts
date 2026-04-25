@@ -16,7 +16,7 @@ const config: Config = {
       fontSize: {
         "page-title": ["1.5rem", { lineHeight: "2rem", fontWeight: "600", letterSpacing: "-0.025em" }],
         "section-title": ["1.125rem", { lineHeight: "1.5rem", fontWeight: "600", letterSpacing: "-0.02em" }],
-        nav: ["0.8125rem", { lineHeight: "1rem", fontWeight: "500" }],
+        /** Sidebar section labels (Core, Email, …) — not the nav links */
         "nav-group": ["0.6875rem", { lineHeight: "1rem", fontWeight: "600", letterSpacing: "0.08em" }],
       },
       colors: {

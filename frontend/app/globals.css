@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --sidebar-width: 232px;
+  --sidebar-width: 248px;
 
   --background: 220 24% 98.5%;
   --foreground: 222 44% 12%;
@@ -139,23 +139,14 @@ body {
     border: 1px solid hsl(var(--border) / 0.8);
     background-color: hsl(var(--card) / 0.3);
     box-shadow: var(--shadow-xs);
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+    /* Match app-wide hidden scrollbars (scroll still works). */
+    scrollbar-width: none;
   }
 
   .table-wrap::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-    display: block;
-  }
-
-  .table-wrap::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.35);
-    border-radius: 9999px;
-  }
-
-  .table-wrap::-webkit-scrollbar-track {
-    background: transparent;
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   /** Fill a flex parent (e.g. dialog column) instead of the default viewport-capped height. */
