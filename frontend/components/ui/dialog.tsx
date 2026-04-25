@@ -54,7 +54,7 @@ export function Dialog({
         className="absolute inset-0 bg-black/45"
         onClick={() => onOpenChange(false)}
       />
-      <div className="absolute inset-0 flex items-start justify-center overflow-y-auto p-4 pt-10">
+      <div className="absolute inset-0 flex min-h-full items-start justify-center overflow-y-auto p-4 pt-6 sm:p-6 sm:pt-10 md:pt-14">
         <div className={`relative w-full ${maxWidthClassName} rounded-xl border bg-card shadow-2xl`}>
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div className="space-y-1">

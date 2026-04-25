@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { QUEUE_SCRAPER_JOB, ScraperJobPayload } from '../../../shared/queue.tokens';
 import { ScraperOrchestratorService } from '../scraper-orchestrator.service';
+import { ScraperService } from '../scraper.service';
 import { getDatabase } from '../../../shared/database';
 
 const isWorker = process.env.SCRAPER_WORKER_ENABLED !== 'false';
@@ -17,11 +18,25 @@ const isWorker = process.env.SCRAPER_WORKER_ENABLED !== 'false';
 export class ScraperJobProcessor extends WorkerHost {
   private readonly logger = new Logger(ScraperJobProcessor.name);
 
-  constructor(private readonly orchestrator: ScraperOrchestratorService) {
+  constructor(
+    private readonly orchestrator: ScraperOrchestratorService,
+    private readonly scraper: ScraperService,
+  ) {
     super();
   }
 
   async process(job: Job<ScraperJobPayload>): Promise<any> {
+    if (job.data.aiDigestBackfillOnly) {
+      const { jobId, workspaceId, customerId } = job.data;
+      if (!jobId || !customerId) {
+        return { status: 'skipped', reason: 'ai-digest-missing-ids' };
+      }
+      const force = job.data.aiDigestForce === true;
+      this.logger.log(`[scraper] AI digest backfill bullmq=${job.id} scraperJob=${jobId} force=${force}`);
+      const out = await this.scraper.executeBackfillJobWebsiteDigest(workspaceId, customerId, jobId, force);
+      return { status: 'ai-digest-backfill', ...out };
+    }
+
     let jobId: string | null | undefined = job.data.jobId;
     if ((!jobId || jobId === '__pending__') && job.data.searchProfileId) {
       jobId = await this.materialiseFromProfile(job.data.searchProfileId);

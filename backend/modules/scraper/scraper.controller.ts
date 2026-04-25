@@ -87,4 +87,16 @@ export class ScraperController {
     const { workspaceId } = getWorkspaceId(req);
     return this.scraper.getJobDetail(workspaceId, id);
   }
+
+  @Post('jobs/:id/ai-digest')
+  backfillJobAiDigest(
+    @Req() req: AuthedWithWorkspace,
+    @Param('id') id: string,
+    @Body() body?: { force?: boolean },
+  ) {
+    const { workspaceId, customerId } = getWorkspaceContext(req);
+    return this.scraper.backfillJobWebsiteDigest(workspaceId, customerId, id, {
+      force: body?.force === true,
+    });
+  }
 }

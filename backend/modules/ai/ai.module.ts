@@ -7,6 +7,7 @@ import { IcebreakerService } from './icebreaker.service';
 import { EnrichmentService } from './enrichment.service';
 import { AiSettingsService } from './ai-settings.service';
 import { AiController } from './ai.controller';
+import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service';
 
 @Module({
   controllers: [AiController],
@@ -18,7 +19,15 @@ import { AiController } from './ai.controller';
     IcebreakerService,
     EnrichmentService,
     AiSettingsService,
+    WebsiteDigestRepBriefService,
   ],
-  exports: [NameDetectorService, IcebreakerService, EnrichmentService, AiUsageService, OpenAiClient],
+  exports: [
+    NameDetectorService,
+    IcebreakerService,
+    EnrichmentService,
+    AiUsageService,
+    OpenAiClient,
+    WebsiteDigestRepBriefService,
+  ],
 })
 export class AiModule {}

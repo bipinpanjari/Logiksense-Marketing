@@ -44,8 +44,11 @@ export interface SequenceTickJobPayload {
 export interface ScraperJobPayload {
   jobId?: string;
   workspaceId: string;
-  /** When set, the processor materialises a scraper_jobs row from this profile. */
+  customerId?: string;
   searchProfileId?: string;
+  aiDigestBackfillOnly?: boolean;
+  /** When true, regenerate briefs for every row in the job, not only missing aiStructured. */
+  aiDigestForce?: boolean;
 }
 
 export interface LinkedInJobPayload {

@@ -15,6 +15,7 @@ export interface ChatCompletionInput {
   messages: ChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  jsonObject?: boolean;
 }
 
 export interface ChatCompletionResult {
@@ -40,11 +41,6 @@ export class OpenAiClient {
   private readonly logger = new Logger(OpenAiClient.name);
   constructor(private readonly vault: VaultService) {}
 
-  /**
-   * Resolve the API key and mode for a workspace. BYOK keys live in the vault
-   * under scope=openai with ref_key=workspace:<id>. If the workspace selected
-   * "platform" (default), fall back to process.env.OPENAI_API_KEY.
-   */
   async resolveProvider(workspaceId: string): Promise<ProviderConfig | null> {
     const db = getDatabase();
     const wsRes = await db.query(
@@ -74,22 +70,22 @@ export class OpenAiClient {
     }
     const model = input.model || provider.model;
     try {
-      const res = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model,
-          messages: input.messages,
-          temperature: input.temperature ?? 0.7,
-          max_tokens: input.maxTokens ?? 200,
+      const body: Record<string, unknown> = {
+        model,
+        messages: input.messages,
+        temperature: input.temperature ?? 0.7,
+        max_tokens: input.maxTokens ?? 200,
+      };
+      if (input.jsonObject) {
+        body.response_format = { type: 'json_object' };
+      }
+      const res = await axios.post('https://api.openai.com/v1/chat/completions', body, {
+        headers: {
+          Authorization: `Bearer ${provider.apiKey}`,
+          'Content-Type': 'application/json',
         },
-        {
-          headers: {
-            Authorization: `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        },
-      );
+        timeout: input.jsonObject ? 120000 : 30000,
+      });
       const text: string = res.data?.choices?.[0]?.message?.content?.trim() ?? '';
       const usage = res.data?.usage ?? {};
       return {

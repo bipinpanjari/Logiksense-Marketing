@@ -40,6 +40,87 @@ export interface ScraperJobRow {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  /** Per-job search_items counts for website text + AI structuring */
+  digest_items_total?: number;
+  digest_items_with_text?: number;
+  digest_items_ai?: number;
+}
+
+/** AI-structured view of website crawl text (when workspace AI is on). */
+export interface WebsiteDigestStructuredPage {
+  url: string;
+  pageKind: string;
+  title: string | null;
+  summary: string;
+  keyPoints: string[];
+  likelyNotFound: boolean;
+}
+
+export interface WebsiteDigestStructured {
+  structuredAt: string;
+  model?: string;
+  siteOverview: string;
+  accountBrief?: string;
+  outreachAngles?: string[];
+  openQuestions?: string[];
+  callPrepNotes?: string;
+  pages: WebsiteDigestStructuredPage[];
+}
+
+export interface SearchItemBusinessProfile {
+  collectedAt?: string;
+  source?: string;
+  aiStructured?: WebsiteDigestStructured | null;
+  searchContext?: {
+    jobCity?: string | null;
+    jobCountry?: string | null;
+    businessType?: string | null;
+    searchQuery?: string | null;
+  };
+  maps?: {
+    addressLine?: string | null;
+    mapsIntel?: {
+      attributeMap?: Record<string, string>;
+      hoursSummary?: string;
+      secondaryCategories?: string[];
+    } | null;
+  };
+  website?: {
+    scrapedAt?: string;
+    pagesVisited?: string[];
+    extractedText?: string | null;
+    companyNameHint?: string;
+    emailCount?: number;
+    phoneCount?: number;
+    /** Readable summaries per URL; raw `extractedText` remains the source of truth. */
+    aiStructured?: WebsiteDigestStructured | null;
+    crawl?: {
+      mode?: string;
+      sameOriginOnly?: boolean;
+      maxPages?: number;
+      maxDepth?: number;
+      pagesCrawled?: number;
+      sitemapUrlsSeeded?: number;
+      textCharsTotal?: number;
+      snapshots?: Array<{
+        url: string;
+        title?: string;
+        metaDescription?: string;
+        canonical?: string;
+        h1?: string;
+        h2Sample?: string[];
+        jsonLdEntities?: Array<{
+          type: string;
+          name?: string;
+          description?: string;
+          url?: string;
+          sameAs?: string[];
+          telephone?: string;
+        }>;
+        socialLinks?: string[];
+      }>;
+    } | null;
+  };
 }
 
 export interface SearchItem {
@@ -58,6 +139,7 @@ export interface SearchItem {
   lead_id: string | null;
   lead_status: string | null;
   notes: string | null;
+  business_profile?: SearchItemBusinessProfile | Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -152,5 +234,19 @@ export async function listScraperJobs(limit = 50): Promise<ScraperJobRow[]> {
 
 export async function getScraperJob(id: string): Promise<{ job: ScraperJobRow; items: SearchItem[] }> {
   const res = await authedFetch(`/api/scraper/jobs/${id}`, { cache: "no-store" });
+  return res.json();
+}
+
+export async function backfillScraperJobAiDigest(
+  jobId: string,
+  options?: { force?: boolean },
+): Promise<{
+  ok: boolean;
+  queued: boolean;
+}> {
+  const res = await authedFetch(`/api/scraper/jobs/${jobId}/ai-digest`, {
+    method: "POST",
+    body: JSON.stringify({ force: options?.force === true }),
+  });
   return res.json();
 }

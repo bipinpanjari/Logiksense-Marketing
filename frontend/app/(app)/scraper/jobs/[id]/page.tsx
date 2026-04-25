@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SearchItemDetailDialog } from "@/components/scraper/search-item-detail-dialog";
 import { getScraperJob, ScraperJobRow, SearchItem } from "@/lib/scraper";
+import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
 
 function asList(v: string[] | string | null | undefined): string[] {
   if (!v) return [];
@@ -26,6 +28,7 @@ export default function ScraperJobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(() => Date.now());
+  const [detailItem, setDetailItem] = useState<SearchItem | null>(null);
 
   async function load() {
     if (!id) return;
@@ -72,10 +75,36 @@ export default function ScraperJobDetailPage() {
   const startedMs = t0 > 0 ? tick - t0 : 0;
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Scraper job</h1>
-          <p className="text-sm text-muted-foreground">{job.query}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-2">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Scraper job</h1>
+            <p className="text-sm text-muted-foreground">{job.query}</p>
+          </div>
+          {job.status === "completed" ? (
+            <div className="rounded-xl border border-border/80 bg-gradient-to-b from-muted/40 to-muted/10 px-4 py-3.5 shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6 lg:gap-8">
+                <div className="min-w-0 flex-1">
+                  <JobAiDigestActions
+                    job={job}
+                    onDone={async () => {
+                      setError("");
+                      await load();
+                    }}
+                    onError={setError}
+                  />
+                </div>
+                {typeof job.digest_items_total === "number" && job.digest_items_total > 0 ? (
+                  <p className="shrink-0 text-xs leading-snug text-muted-foreground sm:max-w-[220px] sm:text-right sm:leading-relaxed">
+                    <span className="font-medium text-foreground">
+                      {job.digest_items_ai ?? 0}/{job.digest_items_total}
+                    </span>{" "}
+                    businesses have an AI research summary (Maps, contacts, crawl).
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
         <Link href="/scraper/jobs">
           <Button variant="outline">Back</Button>
@@ -142,6 +171,9 @@ export default function ScraperJobDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Extracted businesses</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Each row combines Google Maps intel with a same-origin site crawl (sitemap seeds, internal links, schema.org, social links, and a large text digest). Click a row for the full dossier.
+          </p>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (
@@ -164,7 +196,19 @@ export default function ScraperJobDetailPage() {
                     const emails = asList(it.emails);
                     const phones = asList(it.phones);
                     return (
-                      <tr key={it.id} className="border-b align-top">
+                      <tr
+                        key={it.id}
+                        role="button"
+                        tabIndex={0}
+                        className="cursor-pointer border-b align-top transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => setDetailItem(it)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setDetailItem(it);
+                          }
+                        }}
+                      >
                         <td className="px-3 py-2">
                           <p className="font-medium">{it.business_name || "-"}</p>
                           <p className="text-xs text-muted-foreground">{[it.city, it.country].filter(Boolean).join(", ")}</p>
@@ -172,7 +216,13 @@ export default function ScraperJobDetailPage() {
                         <td className="px-3 py-2">{it.category || "-"}</td>
                         <td className="px-3 py-2">
                           {it.website_url ? (
-                            <a className="underline-offset-4 hover:underline" href={it.website_url} target="_blank" rel="noreferrer">
+                            <a
+                              className="underline-offset-4 hover:underline"
+                              href={it.website_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               Visit
                             </a>
                           ) : (
@@ -197,6 +247,8 @@ export default function ScraperJobDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <SearchItemDetailDialog item={detailItem} open={detailItem != null} onOpenChange={(o) => !o && setDetailItem(null)} />
     </div>
   );
 }

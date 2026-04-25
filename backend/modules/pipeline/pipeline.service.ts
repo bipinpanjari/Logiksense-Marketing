@@ -123,12 +123,28 @@ export class PipelineService {
   async listByStage(workspaceId: string, stage: PipelineStage, limit = 200) {
     const db = getDatabase();
     const res = await db.query(
-      `SELECT id, first_name, last_name, email, company, job_title, pipeline_stage,
-              pipeline_stage_updated_at, last_contacted_at, last_replied_at, reply_count,
-              lead_score, icebreaker, email_validation_status
-       FROM leads
-       WHERE workspace_id = $1 AND pipeline_stage = $2
-       ORDER BY pipeline_stage_updated_at DESC NULLS LAST
+      `SELECT l.id, l.first_name, l.last_name, l.email, l.company, l.job_title, l.phone, l.city, l.country,
+              l.pipeline_stage, l.pipeline_stage_updated_at, l.last_contacted_at, l.last_replied_at, l.reply_count,
+              l.lead_score, l.icebreaker, l.email_validation_status, l.enrichment,
+              si.business_name AS scraper_business_name,
+              si.category AS scraper_category,
+              si.website_url AS scraper_website_url,
+              si.phone AS scraper_item_phone,
+              si.rating AS scraper_rating,
+              si.review_count AS scraper_review_count,
+              si.emails AS scraper_emails,
+              si.phones AS scraper_phones,
+              si.business_profile AS scraper_business_profile
+       FROM leads l
+       LEFT JOIN LATERAL (
+         SELECT business_name, category, website_url, phone, rating, review_count, emails, phones, business_profile
+         FROM search_items
+         WHERE lead_id = l.id AND workspace_id = l.workspace_id
+         ORDER BY updated_at DESC NULLS LAST
+         LIMIT 1
+       ) si ON true
+       WHERE l.workspace_id = $1 AND l.pipeline_stage = $2
+       ORDER BY l.pipeline_stage_updated_at DESC NULLS LAST
        LIMIT $3`,
       [workspaceId, stage, Math.min(500, Math.max(1, limit))],
     );

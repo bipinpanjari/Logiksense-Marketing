@@ -4,11 +4,11 @@ import type { BrowserContext } from 'playwright';
 import { getDatabase } from '../../shared/database';
 import { closeBrowser, setupBrowser, type BrowserSetup } from './utils/browser-config';
 import { GoogleMapsScraperService, GoogleMapsResult } from './gmaps-scraper.service';
-import { WebsiteScraperService } from './website-scraper.service';
+import { WebsiteScraperService, type WebsiteScrapeResult } from './website-scraper.service';
+import { WebsiteDigestRepBriefService } from '../ai/website-digest-rep-brief.service';
 
 export interface OrchestratorInput {
   jobId: string;
-  /** Bull job for `updateProgress` in Redis; DB remains source of truth for the UI */
   bullJob?: Job;
 }
 
@@ -32,6 +32,7 @@ export class ScraperOrchestratorService {
   constructor(
     private readonly gmaps: GoogleMapsScraperService,
     private readonly website: WebsiteScraperService,
+    private readonly digestRepBrief: WebsiteDigestRepBriefService,
   ) {}
 
   async run(input: OrchestratorInput): Promise<OrchestratorResult> {
@@ -181,7 +182,7 @@ export class ScraperOrchestratorService {
       `Place ${idx1}/${total}: ${nameShort} — saving`,
     );
     this.logger.log(`[job ${jobId}] place ${idx1}/${total}: ${place.companyName?.slice(0, 60) || '?'}`);
-    await this.persistItem(db, job, place);
+    const itemId = await this.persistItem(db, job, place);
     let withEmail = false;
     if (this.websiteEnabled && place.hasWebsite && place.websiteUrl) {
       await this.setProgress(
@@ -189,15 +190,19 @@ export class ScraperOrchestratorService {
         jobId,
         bull,
         Math.min(95, 50 + (45 * idx1) / Math.max(1, total)),
-        `Place ${idx1}/${total}: ${nameShort} — scanning website for emails`,
+        `Place ${idx1}/${total}: ${nameShort} — deep site crawl (sitemap + pages)`,
       );
       this.logger.log(`[job ${jobId}]   fetching website for emails…`);
       const ws = await this.website.scrape(context, place.websiteUrl);
       if (ws) {
-        await this.updateItemFromWebsite(db, jobId, place, ws);
+        await this.updateItemFromWebsite(db, job, jobId, place, ws);
         if (ws.emails.length > 0) withEmail = true;
         await this.promoteToLeads(db, job, place, ws.emails);
+      } else {
+        await this.enrichSearchItemAi(db, job, itemId);
       }
+    } else {
+      await this.enrichSearchItemAi(db, job, itemId);
     }
     return { processed: true, withEmail };
   }
@@ -240,11 +245,26 @@ export class ScraperOrchestratorService {
     );
   }
 
-  private async persistItem(db: ReturnType<typeof getDatabase>, job: any, place: GoogleMapsResult) {
-    await db.query(
+  private async persistItem(db: ReturnType<typeof getDatabase>, job: any, place: GoogleMapsResult): Promise<string> {
+    const businessProfile = {
+      collectedAt: new Date().toISOString(),
+      source: 'gmaps',
+      searchContext: {
+        jobCity: job.city ?? null,
+        jobCountry: job.country ?? null,
+        businessType: job.business_type ?? null,
+        searchQuery: job.query ?? null,
+      },
+      maps: {
+        addressLine: place.address ?? null,
+        mapsIntel: place.mapsIntel ?? null,
+      },
+    };
+    const ins = await db.query(
       `INSERT INTO search_items (workspace_id, scraper_job_id, provider, business_name, category, city, country,
-                                 website_url, phone, rating, review_count, has_website)
-       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                                 website_url, phone, rating, review_count, has_website, business_profile)
+       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+       RETURNING id`,
       [
         job.workspace_id,
         job.id,
@@ -258,25 +278,89 @@ export class ScraperOrchestratorService {
         typeof place.rating === 'number' ? place.rating : null,
         typeof place.reviewCount === 'number' ? place.reviewCount : null,
         place.hasWebsite,
+        JSON.stringify(businessProfile),
       ],
+    );
+    return ins.rows[0].id as string;
+  }
+
+  /** Merge AI-readable research summary from Maps + site + contacts (stored at business_profile.aiStructured). */
+  private async enrichSearchItemAi(
+    db: ReturnType<typeof getDatabase>,
+    job: { workspace_id: string; customer_id?: string | null },
+    itemId: string,
+  ) {
+    const row = await db.query(
+      `SELECT business_name, category, city, country, website_url, phone, emails, phones, business_profile
+       FROM search_items WHERE id = $1::uuid`,
+      [itemId],
+    );
+    if (row.rows.length === 0) return;
+    const r = row.rows[0];
+    const profile = (r.business_profile || {}) as Record<string, unknown>;
+    const emails = Array.isArray(r.emails) ? (r.emails as string[]) : [];
+    const phones = Array.isArray(r.phones) ? (r.phones as string[]) : [];
+    const structured = await this.digestRepBrief.buildRepBriefFromExtraction({
+      workspaceId: job.workspace_id,
+      customerId: job.customer_id ?? null,
+      businessName: r.business_name || '',
+      category: r.category ?? null,
+      city: r.city ?? null,
+      country: r.country ?? null,
+      websiteUrl: r.website_url ?? null,
+      phone: r.phone ?? null,
+      emails,
+      phones,
+      businessProfile: profile,
+    });
+    if (!structured) return;
+    await db.query(
+      `UPDATE search_items
+       SET business_profile = COALESCE(business_profile, '{}'::jsonb) || $2::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1::uuid`,
+      [itemId, JSON.stringify({ aiStructured: structured })],
     );
   }
 
   private async updateItemFromWebsite(
     db: ReturnType<typeof getDatabase>,
+    job: { workspace_id: string; customer_id?: string | null },
     jobId: string,
     place: GoogleMapsResult,
-    ws: { emails: string[]; phoneNumbers: string[] },
+    ws: WebsiteScrapeResult,
   ) {
     if (!place.websiteUrl) return;
-    await db.query(
+    const text = ws.websiteText?.slice(0, 100_000) ?? null;
+    const websiteProfile = {
+      website: {
+        scrapedAt: ws.timestamp,
+        pagesVisited: ws.pagesVisited,
+        extractedText: text,
+        companyNameHint: ws.companyName,
+        emailCount: ws.emails.length,
+        phoneCount: ws.phoneNumbers.length,
+        crawl: ws.crawl ?? null,
+      },
+    };
+    const upd = await db.query(
       `UPDATE search_items
        SET emails = $3::jsonb, phones = $4::jsonb,
            lead_status = CASE WHEN jsonb_array_length($3::jsonb) > 0 THEN 'extracted' ELSE 'empty' END,
+           business_profile = COALESCE(business_profile, '{}'::jsonb) || $5::jsonb,
            updated_at = CURRENT_TIMESTAMP
-       WHERE scraper_job_id = $1::uuid AND website_url = $2`,
-      [jobId, place.websiteUrl, JSON.stringify(ws.emails), JSON.stringify(ws.phoneNumbers)],
+       WHERE scraper_job_id = $1::uuid AND website_url = $2
+       RETURNING id`,
+      [
+        jobId,
+        place.websiteUrl,
+        JSON.stringify(ws.emails),
+        JSON.stringify(ws.phoneNumbers),
+        JSON.stringify(websiteProfile),
+      ],
     );
+    const id = upd.rows[0]?.id as string | undefined;
+    if (id) await this.enrichSearchItemAi(db, job, id);
   }
 
   private async promoteToLeads(

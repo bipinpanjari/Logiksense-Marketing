@@ -13,6 +13,12 @@ function withMapsEnglishParam(url: string): string {
   }
 }
 
+export interface GoogleMapsPlaceIntel {
+  attributeMap: Record<string, string>;
+  hoursSummary?: string;
+  secondaryCategories?: string[];
+}
+
 export interface GoogleMapsResult {
   companyName: string;
   category?: string;
@@ -22,20 +28,12 @@ export interface GoogleMapsResult {
   reviewCount?: number;
   websiteUrl?: string;
   hasWebsite: boolean;
+  mapsIntel?: GoogleMapsPlaceIntel;
 }
-
-/**
- * Google Maps scraper. Uses public, unauthenticated search. Honors robots.txt
- * at the service layer (kill-switch and ToS gate live upstream in the scraper
- * module). Designed to be polite: generous human-style delays, small batches.
- */
 @Injectable()
 export class GoogleMapsScraperService {
   private readonly logger = new Logger(GoogleMapsScraperService.name);
 
-  /**
-   * @param onProgress GMaps is the slowest phase; report place index for UI/DB so runs feel "alive"
-   */
   async scrape(
     context: BrowserContext,
     query: string,
@@ -162,7 +160,47 @@ export class GoogleMapsScraperService {
       const ratingStr = text('div.F7nice span[aria-hidden="true"]');
       const reviewStr = text('div.F7nice span[aria-label*="review" i]');
 
-      return { name, category, address, phone, website, ratingStr, reviewStr };
+      const attributeMap: Record<string, string> = {};
+      document.querySelectorAll('[data-item-id]').forEach((el) => {
+        const id = el.getAttribute('data-item-id') || '';
+        if (!id || id.length > 120) return;
+        let lbl = el.getAttribute('aria-label') || '';
+        if (!lbl) lbl = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        if (!lbl) return;
+        lbl = lbl.trim();
+        if (lbl.length > 600) lbl = `${lbl.slice(0, 600)}…`;
+        attributeMap[id] = lbl;
+      });
+
+      let hoursSummary = '';
+      const oh =
+        document.querySelector('button[data-item-id="oh"]') ||
+        document.querySelector('[data-item-id="oh"]') ||
+        document.querySelector('[aria-label*="Hours" i][role="button"]');
+      if (oh) {
+        hoursSummary =
+          oh.getAttribute('aria-label')?.trim() ||
+          (oh.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 900);
+      }
+
+      const secondaryCategories: string[] = [];
+      document.querySelectorAll('button[jsaction*="category"]').forEach((el) => {
+        const t = (el.textContent || '').trim();
+        if (t && t !== name && t.length < 100) secondaryCategories.push(t);
+      });
+
+      return {
+        name,
+        category,
+        address,
+        phone,
+        website,
+        ratingStr,
+        reviewStr,
+        attributeMap,
+        hoursSummary,
+        secondaryCategories: [...new Set(secondaryCategories)],
+      };
     });
 
     if (!data.name) return null;
@@ -170,6 +208,17 @@ export class GoogleMapsScraperService {
     const rating = parseFloat(data.ratingStr.replace(',', '.')) || undefined;
     const reviewCount =
       parseInt(data.reviewStr.replace(/[^\d]/g, ''), 10) || undefined;
+
+    const intel: GoogleMapsPlaceIntel = {
+      attributeMap: data.attributeMap || {},
+      hoursSummary: data.hoursSummary || undefined,
+      secondaryCategories:
+        data.secondaryCategories?.length && data.secondaryCategories.length > 0
+          ? data.secondaryCategories
+          : undefined,
+    };
+    const hasIntel =
+      Object.keys(intel.attributeMap).length > 0 || intel.hoursSummary || intel.secondaryCategories?.length;
 
     return {
       companyName: data.name,
@@ -180,6 +229,7 @@ export class GoogleMapsScraperService {
       reviewCount,
       websiteUrl: data.website || undefined,
       hasWebsite: Boolean(data.website),
+      mapsIntel: hasIntel ? intel : undefined,
     };
   }
 }

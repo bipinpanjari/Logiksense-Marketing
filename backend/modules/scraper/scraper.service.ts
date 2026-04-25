@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
 import { QUEUE_SCRAPER_JOB, ScraperJobPayload } from '../../shared/queue.tokens';
+import { WebsiteDigestRepBriefService } from '../ai/website-digest-rep-brief.service';
 
 export interface CreateProfileInput {
   name: string;
@@ -19,7 +20,10 @@ export interface CreateProfileInput {
 export class ScraperService {
   private readonly logger = new Logger(ScraperService.name);
 
-  constructor(@InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>) {}
+  constructor(
+    @InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>,
+    private readonly websiteDigestRepBrief: WebsiteDigestRepBriefService,
+  ) {}
 
   async listProfiles(workspaceId: string) {
     const db = getDatabase();
@@ -106,12 +110,32 @@ export class ScraperService {
   async listJobs(workspaceId: string, limit = 50) {
     const db = getDatabase();
     const res = await db.query(
-      `SELECT id, provider, query, business_type, city, country, target_limit, status,
-              leads_found, leads_with_email, error, progress_label, progress_pct,
-              created_at, started_at, completed_at
-       FROM scraper_jobs
-       WHERE workspace_id = $1::uuid
-       ORDER BY created_at DESC
+      `SELECT sj.id, sj.provider, sj.query, sj.business_type, sj.city, sj.country, sj.target_limit, sj.status,
+              sj.leads_found, sj.leads_with_email, sj.error, sj.progress_label, sj.progress_pct,
+              sj.created_at, sj.started_at, sj.completed_at,
+              COALESCE(d.items_total, 0)::int AS digest_items_total,
+              COALESCE(d.items_with_text, 0)::int AS digest_items_with_text,
+              COALESCE(d.items_ai, 0)::int AS digest_items_ai
+       FROM scraper_jobs sj
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS items_total,
+                COUNT(*) FILTER (
+                  WHERE NULLIF(trim(COALESCE(si.business_profile->'website'->>'extractedText', '')), '') IS NOT NULL
+                )::int AS items_with_text,
+                COUNT(*) FILTER (
+                  WHERE (
+                    si.business_profile->'aiStructured' IS NOT NULL
+                    AND jsonb_typeof(si.business_profile->'aiStructured') = 'object'
+                  ) OR (
+                    si.business_profile->'website'->'aiStructured' IS NOT NULL
+                    AND jsonb_typeof(si.business_profile->'website'->'aiStructured') = 'object'
+                  )
+                )::int AS items_ai
+         FROM search_items si
+         WHERE si.scraper_job_id = sj.id
+       ) d ON true
+       WHERE sj.workspace_id = $1::uuid
+       ORDER BY sj.created_at DESC
        LIMIT $2`,
       [workspaceId, Math.min(limit, 200)],
     );
@@ -128,14 +152,156 @@ export class ScraperService {
       [jobId, workspaceId],
     );
     if (job.rows.length === 0) throw new NotFoundException('job not found');
+    const digest = await db.query(
+      `SELECT COUNT(*)::int AS items_total,
+              COUNT(*) FILTER (
+                WHERE NULLIF(trim(COALESCE(si.business_profile->'website'->>'extractedText', '')), '') IS NOT NULL
+              )::int AS items_with_text,
+              COUNT(*) FILTER (
+                WHERE (
+                  si.business_profile->'aiStructured' IS NOT NULL
+                  AND jsonb_typeof(si.business_profile->'aiStructured') = 'object'
+                ) OR (
+                  si.business_profile->'website'->'aiStructured' IS NOT NULL
+                  AND jsonb_typeof(si.business_profile->'website'->'aiStructured') = 'object'
+                )
+              )::int AS items_ai
+       FROM search_items si
+       WHERE si.scraper_job_id = $1::uuid`,
+      [jobId],
+    );
+    const d = digest.rows[0] || { items_total: 0, items_with_text: 0, items_ai: 0 };
     const items = await db.query(
       `SELECT id, business_name, category, city, country, website_url, phone, rating, review_count,
-              has_website, emails, phones, lead_id, lead_status, notes, created_at, updated_at
+              has_website, emails, phones, lead_id, lead_status, notes, business_profile, created_at, updated_at
        FROM search_items WHERE scraper_job_id = $1::uuid
        ORDER BY created_at DESC`,
       [jobId],
     );
-    return { job: job.rows[0], items: items.rows };
+    return {
+      job: {
+        ...job.rows[0],
+        digest_items_total: d.items_total,
+        digest_items_with_text: d.items_with_text,
+        digest_items_ai: d.items_ai,
+      },
+      items: items.rows,
+    };
+  }
+
+  private async assertAiDigestBackfillAllowed(workspaceId: string, jobId: string) {
+    const db = getDatabase();
+    const wsRes = await db.query(`SELECT ai_personalization_enabled FROM workspaces WHERE id = $1::uuid`, [
+      workspaceId,
+    ]);
+    if (wsRes.rows[0]?.ai_personalization_enabled !== true) {
+      throw new BadRequestException(
+        'Enable AI personalization for this workspace (Settings → AI) before generating research briefs.',
+      );
+    }
+    const jobCheck = await db.query(
+      `SELECT id, status FROM scraper_jobs WHERE id = $1::uuid AND workspace_id = $2::uuid`,
+      [jobId, workspaceId],
+    );
+    if (jobCheck.rows.length === 0) throw new NotFoundException('job not found');
+    if (jobCheck.rows[0].status !== 'completed') {
+      throw new BadRequestException('AI digest backfill is only available for completed jobs');
+    }
+  }
+
+  /**
+   * HTTP entrypoint: validate, then enqueue so work continues if the user navigates away.
+   * @param options.force Regenerate all research briefs for the job, including rows that already have aiStructured.
+   */
+  async backfillJobWebsiteDigest(
+    workspaceId: string,
+    customerId: string,
+    jobId: string,
+    options?: { force?: boolean },
+  ) {
+    await this.assertAiDigestBackfillAllowed(workspaceId, jobId);
+    const force = options?.force === true;
+    const queueAttempts = Math.max(1, parseInt(process.env.SCRAPER_QUEUE_ATTEMPTS || '1', 10));
+    await this.queue.add(
+      force ? `ai-digest-force-${jobId}` : `ai-digest-${jobId}`,
+      {
+        workspaceId,
+        customerId,
+        jobId,
+        aiDigestBackfillOnly: true,
+        aiDigestForce: force,
+      },
+      {
+        attempts: queueAttempts,
+        backoff: { type: 'exponential', delay: 120_000 },
+      },
+    );
+    return { ok: true as const, queued: true as const };
+  }
+
+  /**
+   * Worker: run the full backfill loop (re-validates workspace/job in case settings changed while queued).
+   */
+  async executeBackfillJobWebsiteDigest(workspaceId: string, customerId: string, jobId: string, force = false) {
+    await this.assertAiDigestBackfillAllowed(workspaceId, jobId);
+    const db = getDatabase();
+
+    const items = await db.query(
+      `SELECT id, business_name, category, city, country, website_url, phone, emails, phones, business_profile
+       FROM search_items
+       WHERE scraper_job_id = $1::uuid
+         AND (
+           $2::boolean IS TRUE
+           OR NOT (
+             (
+               business_profile->'aiStructured' IS NOT NULL
+               AND jsonb_typeof(business_profile->'aiStructured') = 'object'
+             ) OR (
+               business_profile->'website'->'aiStructured' IS NOT NULL
+               AND jsonb_typeof(business_profile->'website'->'aiStructured') = 'object'
+             )
+           )
+         )`,
+      [jobId, force],
+    );
+
+    let updated = 0;
+    let failed = 0;
+    for (const row of items.rows) {
+      const profile = (row.business_profile || {}) as Record<string, unknown>;
+      const emails = Array.isArray(row.emails) ? (row.emails as string[]) : [];
+      const phones = Array.isArray(row.phones) ? (row.phones as string[]) : [];
+      const structured = await this.websiteDigestRepBrief.buildRepBriefFromExtraction({
+        workspaceId,
+        customerId,
+        businessName: row.business_name || '',
+        category: row.category ?? null,
+        city: row.city ?? null,
+        country: row.country ?? null,
+        websiteUrl: row.website_url ?? null,
+        phone: row.phone ?? null,
+        emails,
+        phones,
+        businessProfile: profile,
+      });
+      if (!structured) {
+        failed++;
+        continue;
+      }
+      await db.query(
+        `UPDATE search_items
+         SET business_profile = COALESCE(business_profile, '{}'::jsonb) || $2::jsonb,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1::uuid`,
+        [row.id, JSON.stringify({ aiStructured: structured })],
+      );
+      updated++;
+    }
+
+    this.logger.log(
+      `[scraper] job ${jobId} AI digest backfill force=${force} candidates=${items.rows.length} updated=${updated} failed=${failed}`,
+    );
+    return { ok: true as const, candidates: items.rows.length, updated, failed };
   }
 
   async runProfile(workspaceId: string, customerId: string, profileId: string) {

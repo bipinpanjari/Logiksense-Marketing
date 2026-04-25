@@ -33,6 +33,9 @@ export interface PipelineLead {
   email: string;
   company: string | null;
   job_title: string | null;
+  phone: string | null;
+  city: string | null;
+  country: string | null;
   pipeline_stage: PipelineStage;
   pipeline_stage_updated_at: string | null;
   last_contacted_at: string | null;
@@ -41,6 +44,16 @@ export interface PipelineLead {
   lead_score: number;
   icebreaker: string | null;
   email_validation_status: string | null;
+  enrichment?: Record<string, unknown> | null;
+  scraper_business_profile?: Record<string, unknown> | null;
+  scraper_business_name?: string | null;
+  scraper_category?: string | null;
+  scraper_website_url?: string | null;
+  scraper_item_phone?: string | null;
+  scraper_rating?: string | number | null;
+  scraper_review_count?: number | null;
+  scraper_emails?: string[] | string | null;
+  scraper_phones?: string[] | string | null;
 }
 
 export interface PipelineColumn {

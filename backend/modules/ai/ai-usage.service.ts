@@ -47,7 +47,7 @@ export class AiUsageService {
         `INSERT INTO ai_usage_log (workspace_id, customer_id, provider, model, operation,
                                    input_tokens, output_tokens, total_tokens, cost_cents, byok,
                                    status, error)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           evt.workspaceId,
           evt.customerId ?? null,

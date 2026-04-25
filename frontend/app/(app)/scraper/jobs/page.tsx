@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listScraperJobs, ScraperJobRow } from "@/lib/scraper";
+import { JobAiDigestActions } from "@/components/scraper/job-ai-digest-actions";
 
 function statusVariant(status: ScraperJobRow["status"]) {
   switch (status) {
@@ -76,12 +77,13 @@ export default function ScraperJobsPage() {
             <p className="text-sm text-muted-foreground">No jobs yet.</p>
           ) : (
             <div className="overflow-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[1100px] text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="px-3 py-2 text-left font-medium">Query</th>
                     <th className="px-3 py-2 text-left font-medium">Location</th>
                     <th className="px-3 py-2 text-left font-medium">Status</th>
+                    <th className="px-3 py-2 text-left font-medium">AI digest</th>
                     <th className="px-3 py-2 text-left font-medium">Leads</th>
                     <th className="px-3 py-2 text-left font-medium">w/ Email</th>
                     <th className="px-3 py-2 text-left font-medium">Created</th>
@@ -95,6 +97,17 @@ export default function ScraperJobsPage() {
                       <td className="px-3 py-2">{[job.city, job.country].filter(Boolean).join(", ") || "-"}</td>
                       <td className="px-3 py-2">
                         <Badge variant={statusVariant(job.status)}>{job.status}</Badge>
+                      </td>
+                      <td className="px-3 py-2 align-middle">
+                        <JobAiDigestActions
+                          job={job}
+                          onDone={async () => {
+                            setError("");
+                            await load();
+                          }}
+                          onError={setError}
+                          compact
+                        />
                       </td>
                       <td className="px-3 py-2">{job.leads_found}</td>
                       <td className="px-3 py-2">{job.leads_with_email}</td>

@@ -691,6 +691,8 @@ model SearchItem {
   leadId        String?  @map("lead_id") @db.Uuid
   leadStatus    String   @default("pending") @map("lead_status") @db.VarChar(32)
   notes         String?
+  /// Maps + website research: attributes, hours, categories, extracted site text, search context
+  businessProfile Json     @default("{}") @map("business_profile")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
 
