@@ -10,6 +10,22 @@ import { Callout } from "@/components/ui/callout";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/layout/page-shell";
 
+const IMPORT_FIELD_OPTIONS: { key: keyof LeadImportMapping; label: string }[] = [
+  { key: "firstName", label: "First name" },
+  { key: "lastName", label: "Last name" },
+  { key: "fullName", label: "Full name (used if first/last are empty)" },
+  { key: "email", label: "Email (required)" },
+  { key: "phone", label: "Phone" },
+  { key: "company", label: "Company" },
+  { key: "jobTitle", label: "Job title" },
+  { key: "companySize", label: "Company size (employee count)" },
+  { key: "city", label: "City" },
+  { key: "state", label: "State / province" },
+  { key: "country", label: "Country" },
+  { key: "source", label: "Lead source" },
+  { key: "tags", label: "Tags (comma-, semicolon-, or pipe-separated)" },
+];
+
 export default function LeadsPage() {
   const [query, setQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
@@ -444,7 +460,7 @@ export default function LeadsPage() {
             <div className="rounded-lg border border-border/80 bg-muted/20 p-3">
               <p className="text-xs font-medium text-muted-foreground">Source File</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                We auto-detect lead fields from the file.
+                Headers are inferred automatically when you analyze the file (including job title, location, tags, and more). Columns you leave unmapped below are kept on each lead as custom fields—their headings and values round-trip unchanged.
               </p>
             </div>
             <Input
@@ -462,9 +478,13 @@ export default function LeadsPage() {
             {importPreview ? (
               <div className="space-y-2 rounded-lg border border-border/80 p-3">
                 <p className="text-sm font-medium">Column Mapping</p>
-                {(["firstName", "lastName", "email", "phone", "company"] as const).map((field) => (
+                <p className="text-xs text-muted-foreground">
+                  Mapped columns fill structured CRM fields. Every other spreadsheet column is stored under{" "}
+                  <span className="font-medium text-foreground">custom_fields</span> without dropping data.
+                </p>
+                {IMPORT_FIELD_OPTIONS.map(({ key: field, label }) => (
                   <label key={field} className="block space-y-1 text-xs">
-                    <span className="text-muted-foreground">{field}</span>
+                    <span className="text-muted-foreground">{label}</span>
                     <select
                       className="w-full rounded-md border bg-background px-2 py-2 text-sm"
                       value={importMapping[field] || ""}
@@ -507,7 +527,7 @@ export default function LeadsPage() {
           <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border/80">
             {importPreview ? (
               <div className="table-wrap table-wrap-fill">
-                <table className="data-table min-w-[860px]">
+                <table className="data-table min-w-[1100px]">
                   <thead>
                     <tr>
                       <th>Row</th>
@@ -516,6 +536,8 @@ export default function LeadsPage() {
                       <th>Email</th>
                       <th>Phone</th>
                       <th>Company</th>
+                      <th>Title</th>
+                      <th>Tags</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -528,6 +550,8 @@ export default function LeadsPage() {
                         <td>{row.email || "-"}</td>
                         <td>{row.phone || "-"}</td>
                         <td>{row.company || "-"}</td>
+                        <td>{row.jobTitle || "-"}</td>
+                        <td className="max-w-[180px] truncate" title={row.tags}>{row.tags || "-"}</td>
                         <td className={row.valid ? "text-success" : "text-destructive"}>
                           {row.valid ? "Valid" : row.issues.join(", ")}
                         </td>

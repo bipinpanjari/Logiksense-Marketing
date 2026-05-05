@@ -8,6 +8,12 @@ export interface CreateLeadDto {
   email: string;
   phone?: string;
   company?: string;
+  jobTitle?: string;
+  companySize?: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  source?: string;
   tags?: string[];
   customFields?: Record<string, any>;
 }
@@ -18,6 +24,12 @@ export interface UpdateLeadDto {
   email?: string;
   phone?: string;
   company?: string;
+  jobTitle?: string;
+  companySize?: number | null;
+  city?: string;
+  state?: string;
+  country?: string;
+  source?: string;
   tags?: string[];
   customFields?: Record<string, any>;
   isSuppressed?: boolean;
@@ -59,8 +71,10 @@ export class LeadService {
 
     try {
       const result = await db.query(
-        `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company, tags, custom_fields, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company,
+           job_title, company_size, city, state, country, source,
+           tags, custom_fields, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING *`,
         [
           leadId,
@@ -70,6 +84,12 @@ export class LeadService {
           email,
           createLeadDto.phone || null,
           createLeadDto.company || null,
+          createLeadDto.jobTitle?.trim() || null,
+          createLeadDto.companySize ?? null,
+          createLeadDto.city?.trim() || null,
+          createLeadDto.state?.trim() || null,
+          createLeadDto.country?.trim() || null,
+          createLeadDto.source?.trim() || null,
           createLeadDto.tags || [],
           JSON.stringify(createLeadDto.customFields || {}),
           customerId,
@@ -238,6 +258,42 @@ export class LeadService {
       if (updateLeadDto.company !== undefined) {
         updateFields.push(`company = $${paramIndex}`);
         updateValues.push(updateLeadDto.company);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.jobTitle !== undefined) {
+        updateFields.push(`job_title = $${paramIndex}`);
+        updateValues.push(updateLeadDto.jobTitle);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.companySize !== undefined) {
+        updateFields.push(`company_size = $${paramIndex}`);
+        updateValues.push(updateLeadDto.companySize);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.city !== undefined) {
+        updateFields.push(`city = $${paramIndex}`);
+        updateValues.push(updateLeadDto.city);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.state !== undefined) {
+        updateFields.push(`state = $${paramIndex}`);
+        updateValues.push(updateLeadDto.state);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.country !== undefined) {
+        updateFields.push(`country = $${paramIndex}`);
+        updateValues.push(updateLeadDto.country);
+        paramIndex++;
+      }
+
+      if (updateLeadDto.source !== undefined) {
+        updateFields.push(`source = $${paramIndex}`);
+        updateValues.push(updateLeadDto.source);
         paramIndex++;
       }
 
@@ -441,6 +497,11 @@ export class LeadService {
       email: lead.email,
       phone: lead.phone,
       company: lead.company,
+      jobTitle: lead.job_title,
+      companySize: lead.company_size,
+      city: lead.city,
+      state: lead.state,
+      country: lead.country,
       tags: lead.tags || [],
       customFields: lead.custom_fields || {},
       source: lead.source,

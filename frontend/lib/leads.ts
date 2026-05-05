@@ -8,7 +8,14 @@ export interface Lead {
   email: string;
   phone?: string;
   company?: string;
+  jobTitle?: string;
+  companySize?: number | null;
+  city?: string;
+  state?: string;
+  country?: string;
+  source?: string;
   tags?: string[];
+  customFields?: Record<string, unknown>;
   isSuppressed?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -113,9 +120,17 @@ export interface LeadImportResult {
 export interface LeadImportMapping {
   firstName?: string | null;
   lastName?: string | null;
+  fullName?: string | null;
   email?: string | null;
   phone?: string | null;
   company?: string | null;
+  jobTitle?: string | null;
+  companySize?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  source?: string | null;
+  tags?: string | null;
 }
 
 export interface LeadImportPreviewResult {
@@ -129,6 +144,13 @@ export interface LeadImportPreviewResult {
     email?: string;
     phone?: string;
     company?: string;
+    jobTitle?: string;
+    companySize?: number;
+    city?: string;
+    state?: string;
+    country?: string;
+    source?: string;
+    tags?: string;
     valid: boolean;
     issues: string[];
   }>;
