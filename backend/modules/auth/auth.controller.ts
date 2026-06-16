@@ -12,7 +12,11 @@ import {
   GetDNSGuideDto,
   CompleteOnboardingDto,
 } from './registration.dto';
+<<<<<<< Updated upstream
 import { UpdateProfileDto, UpdateWorkspaceSettingsDto } from './account.dto';
+=======
+import { UpdateProfileDto, UpdateWorkspaceSettingsDto, ChangePasswordDto } from './account.dto';
+>>>>>>> Stashed changes
 
 @Controller('api/auth')
 export class AuthController {
@@ -38,6 +42,19 @@ export class AuthController {
     return this.authService.refreshToken(refreshToken);
   }
 
+<<<<<<< Updated upstream
+=======
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body('token') token: string, @Body('password') password: string) {
+    return this.authService.resetPassword(token, password);
+  }
+
+>>>>>>> Stashed changes
   @Get('me')
   async getMe(@Request() req: any) {
     if (!req.user) {
@@ -75,6 +92,21 @@ export class AuthController {
     return this.authService.updateProfile(req.user.userId, payload);
   }
 
+<<<<<<< Updated upstream
+=======
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() payload: ChangePasswordDto) {
+    if (!req.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return this.authService.changePassword(
+      req.user.userId,
+      payload.currentPassword,
+      payload.newPassword,
+    );
+  }
+
+>>>>>>> Stashed changes
   @Get('settings')
   async getSettings(@Request() req: any) {
     if (!req.user) {
@@ -173,4 +205,32 @@ export class AuthController {
     const sessionId = req.params.sessionId;
     return this.registrationService.getSessionStatus(sessionId);
   }
+<<<<<<< Updated upstream
+=======
+
+  // ==================== 2FA / MFA ====================
+
+  @Post('2fa/generate')
+  async generate2fa(@Request() req: any) {
+    if (!req.user) throw new UnauthorizedException();
+    return this.authService.generateTwoFactorSecret(req.user.userId);
+  }
+
+  @Post('2fa/turn-on')
+  async turnOn2fa(@Body() body: { code: string }, @Request() req: any) {
+    if (!req.user) throw new UnauthorizedException();
+    return this.authService.enableTwoFactor(req.user.userId, body.code);
+  }
+
+  @Post('2fa/turn-off')
+  async turnOff2fa(@Body() body: { code: string }, @Request() req: any) {
+    if (!req.user) throw new UnauthorizedException();
+    return this.authService.disableTwoFactor(req.user.userId, body.code);
+  }
+
+  @Post('2fa/authenticate')
+  async authenticate2fa(@Body() body: { tempToken: string; code: string }) {
+    return this.authService.loginWithMfa(body.tempToken, body.code);
+  }
+>>>>>>> Stashed changes
 }

@@ -84,6 +84,13 @@ export class GetDNSGuideDto {
 }
 
 export class CompleteOnboardingDto {
+<<<<<<< Updated upstream
+=======
+  @IsBoolean()
+  @IsOptional()
+  termsAccepted?: boolean;
+
+>>>>>>> Stashed changes
   @IsString()
   @IsNotEmpty()
   companyName!: string;

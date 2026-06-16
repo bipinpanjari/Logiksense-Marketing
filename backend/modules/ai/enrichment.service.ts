@@ -3,6 +3,10 @@ import axios from 'axios';
 import { VaultService } from '../../shared/vault.service';
 import { AiUsageService } from './ai-usage.service';
 import { getDatabase } from '../../shared/database';
+<<<<<<< Updated upstream
+=======
+import { ApolloService } from './apollo.service';
+>>>>>>> Stashed changes
 
 export interface ZeroBounceResult {
   status: string;
@@ -46,6 +50,10 @@ export class EnrichmentService {
   constructor(
     private readonly vault: VaultService,
     private readonly usage: AiUsageService,
+<<<<<<< Updated upstream
+=======
+    private readonly apollo: ApolloService,
+>>>>>>> Stashed changes
   ) {}
 
   async isEnabled(workspaceId: string): Promise<boolean> {
@@ -121,6 +129,7 @@ export class EnrichmentService {
     const cached = await this.readCache(workspaceId, 'apollo', cleanDomain);
     if (cached) return cached as ApolloPerson;
 
+<<<<<<< Updated upstream
     const apiKey = await this.vault.get({
       scope: 'apollo',
       refKey: `workspace:${workspaceId}`,
@@ -174,6 +183,34 @@ export class EnrichmentService {
         error: err?.message ?? 'apollo-error',
       });
       this.logger.warn(`apollo failed for ${cleanDomain}: ${err?.message ?? err}`);
+=======
+    try {
+      const searchRes = await this.apollo.searchPeople(workspaceId, {
+        domains: [cleanDomain],
+        titles: options.titles ?? ['CEO', 'Founder', 'Owner', 'Managing Director', 'Director'],
+        page: 1,
+        perPage: 5,
+      });
+
+      if (!searchRes || searchRes.people.length === 0) return null;
+
+      // Find the first one that has an email, or just the first one
+      const match = searchRes.people.find((p) => p.email) ?? searchRes.people[0];
+      
+      const person: ApolloPerson = {
+        email: match.email ?? null,
+        firstName: match.firstName ?? null,
+        lastName: match.lastName ?? null,
+        title: match.title ?? null,
+        linkedinUrl: match.linkedinUrl ?? null,
+        raw: match,
+      };
+
+      await this.writeCache(workspaceId, 'apollo', cleanDomain, person, 30);
+      return person;
+    } catch (err: any) {
+      this.logger.warn(`apollo migration failed for ${cleanDomain}: ${err?.message ?? err}`);
+>>>>>>> Stashed changes
       return null;
     }
   }

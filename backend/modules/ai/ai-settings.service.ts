@@ -13,11 +13,20 @@ export interface AiSettings {
   aiPreferredModel: string | null;
   aiOpenaiConfigured: boolean;
   aiAnthropicConfigured: boolean;
+<<<<<<< Updated upstream
+=======
+  aiGeminiConfigured: boolean;
+  aiOllamaConfigured: boolean;
+>>>>>>> Stashed changes
   enrichmentEnabled: boolean;
   zerobounceConfigured: boolean;
   apolloConfigured: boolean;
   platformOpenAiAvailable: boolean;
   platformAnthropicAvailable: boolean;
+<<<<<<< Updated upstream
+=======
+  platformGeminiAvailable: boolean;
+>>>>>>> Stashed changes
 }
 
 export interface UpdateAiSettingsInput {
@@ -29,6 +38,11 @@ export interface UpdateAiSettingsInput {
   enrichmentEnabled?: boolean;
   openaiApiKey?: string | null;
   anthropicApiKey?: string | null;
+<<<<<<< Updated upstream
+=======
+  geminiApiKey?: string | null;
+  ollamaHost?: string | null;
+>>>>>>> Stashed changes
   zerobounceApiKey?: string | null;
   apolloApiKey?: string | null;
 }
@@ -36,6 +50,11 @@ export interface UpdateAiSettingsInput {
 function normaliseVendor(v: string | null | undefined): LlmVendor {
   const x = (v || 'openai').toLowerCase();
   if (x === 'anthropic') return 'anthropic';
+<<<<<<< Updated upstream
+=======
+  if (x === 'gemini') return 'gemini';
+  if (x === 'ollama') return 'ollama';
+>>>>>>> Stashed changes
   return 'openai';
 }
 
@@ -50,7 +69,11 @@ export class AiSettingsService {
     const db = getDatabase();
     const res = await db.query(
       `SELECT ai_personalization_enabled, ai_personalization_instructions, ai_provider, ai_llm_vendor, ai_preferred_model,
+<<<<<<< Updated upstream
               ai_openai_vault_ref, ai_anthropic_vault_ref, enrichment_enabled,
+=======
+              ai_openai_vault_ref, ai_anthropic_vault_ref, ai_gemini_vault_ref, ai_ollama_vault_ref, enrichment_enabled,
+>>>>>>> Stashed changes
               zerobounce_vault_ref, apollo_vault_ref
        FROM workspaces WHERE id = $1::uuid`,
       [workspaceId],
@@ -70,11 +93,20 @@ export class AiSettingsService {
           : null,
       aiOpenaiConfigured: !!row.ai_openai_vault_ref,
       aiAnthropicConfigured: !!row.ai_anthropic_vault_ref,
+<<<<<<< Updated upstream
+=======
+      aiGeminiConfigured: !!row.ai_gemini_vault_ref,
+      aiOllamaConfigured: !!row.ai_ollama_vault_ref,
+>>>>>>> Stashed changes
       enrichmentEnabled: !!row.enrichment_enabled,
       zerobounceConfigured: !!row.zerobounce_vault_ref,
       apolloConfigured: !!row.apollo_vault_ref,
       platformOpenAiAvailable: !!process.env.OPENAI_API_KEY,
       platformAnthropicAvailable: !!process.env.ANTHROPIC_API_KEY,
+<<<<<<< Updated upstream
+=======
+      platformGeminiAvailable: !!process.env.GEMINI_API_KEY,
+>>>>>>> Stashed changes
     };
   }
 
@@ -132,8 +164,13 @@ export class AiSettingsService {
 
     if (input.aiLlmVendor !== undefined) {
       const v = input.aiLlmVendor;
+<<<<<<< Updated upstream
       if (v !== 'openai' && v !== 'anthropic') {
         throw new BadRequestException('aiLlmVendor must be openai or anthropic');
+=======
+      if (!['openai', 'anthropic', 'gemini', 'ollama'].includes(v)) {
+        throw new BadRequestException('aiLlmVendor must be one of: openai, anthropic, gemini, ollama');
+>>>>>>> Stashed changes
       }
       await db.query(
         `UPDATE workspaces SET ai_llm_vendor = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2::uuid`,
@@ -172,6 +209,25 @@ export class AiSettingsService {
       }
     }
 
+<<<<<<< Updated upstream
+=======
+    if (input.geminiApiKey !== undefined) {
+      if (input.geminiApiKey === null || input.geminiApiKey === '') {
+        await this.llm.removeGeminiKey(workspaceId);
+      } else {
+        await this.llm.storeGeminiKey(workspaceId, input.geminiApiKey);
+      }
+    }
+
+    if (input.ollamaHost !== undefined) {
+      if (input.ollamaHost === null || input.ollamaHost === '') {
+        await this.llm.removeOllamaHost(workspaceId);
+      } else {
+        await this.llm.storeOllamaHost(workspaceId, input.ollamaHost);
+      }
+    }
+
+>>>>>>> Stashed changes
     if (input.zerobounceApiKey !== undefined) {
       if (!input.zerobounceApiKey) {
         await this.enrichment.removeApiKey(workspaceId, 'zerobounce');

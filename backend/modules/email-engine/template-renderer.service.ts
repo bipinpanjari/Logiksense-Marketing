@@ -21,6 +21,10 @@ export interface RenderContext {
   sender: {
     email: string;
     name?: string | null;
+<<<<<<< Updated upstream
+=======
+    signature?: string | null;
+>>>>>>> Stashed changes
   };
   urls: {
     openPixel: string;
@@ -53,7 +57,18 @@ export class TemplateRendererService {
 
     const htmlWithClicks = this.rewriteLinks(renderedHtmlRaw, ctx);
     const htmlWithPixel = this.injectPixel(htmlWithClicks, ctx.urls.openPixel);
+<<<<<<< Updated upstream
     const htmlWithFooter = this.injectUnsubscribeFooter(htmlWithPixel, ctx.urls.unsubscribe);
+=======
+    
+    // Automatically append signature if not already present via variable
+    let finalHtml = htmlWithPixel;
+    if (ctx.sender.signature && !renderedHtmlRaw.includes('{{signature}}') && !renderedHtmlRaw.includes('{{sender.signature}}')) {
+        finalHtml = `${finalHtml}<br/><br/>${ctx.sender.signature}`;
+    }
+
+    const htmlWithFooter = this.injectUnsubscribeFooter(finalHtml, ctx.urls.unsubscribe);
+>>>>>>> Stashed changes
 
     const textWithFooter = `${renderedTextRaw.trim()}\n\n-- \nUnsubscribe: ${ctx.urls.unsubscribe}`;
 
@@ -79,6 +94,11 @@ export class TemplateRendererService {
       country: ctx.lead.country ?? '',
       'sender.email': ctx.sender.email,
       'sender.name': ctx.sender.name ?? '',
+<<<<<<< Updated upstream
+=======
+      'sender.signature': ctx.sender.signature ?? '',
+      signature: ctx.sender.signature ?? '',
+>>>>>>> Stashed changes
       'workspace.name': ctx.workspace.name ?? '',
       unsubscribe_url: ctx.urls.unsubscribe,
     };

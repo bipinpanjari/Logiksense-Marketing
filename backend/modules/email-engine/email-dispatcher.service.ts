@@ -111,7 +111,15 @@ export class EmailDispatcherService {
         },
       },
       workspace: { id: workspace.id, name: workspace.name },
+<<<<<<< Updated upstream
       sender: { email: config.sendingEmail, name: config.smtpFromName },
+=======
+      sender: {
+        email: config.sendingEmail,
+        name: config.smtpFromName,
+        signature: config.signatureHtml,
+      },
+>>>>>>> Stashed changes
       urls: { openPixel, unsubscribe: unsubscribeUrl, clickWrap },
     });
 
@@ -126,6 +134,10 @@ export class EmailDispatcherService {
       templateId: input.templateId ?? null,
       campaignId: input.campaignId ?? null,
       enrollmentId: input.enrollmentId ?? null,
+<<<<<<< Updated upstream
+=======
+      emailConfigId: config.id,
+>>>>>>> Stashed changes
       trackingToken,
       subject,
     });
@@ -316,14 +328,24 @@ export class EmailDispatcherService {
       templateId: string | null;
       campaignId: string | null;
       enrollmentId: string | null;
+<<<<<<< Updated upstream
+=======
+      emailConfigId: string | null;
+>>>>>>> Stashed changes
       trackingToken: string;
       subject: string;
     },
   ) {
     await db.query(
+<<<<<<< Updated upstream
       `INSERT INTO email_logs (id, workspace_id, lead_id, template_id, campaign_id, enrollment_id,
                                tracking_token, status, subject)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)`,
+=======
+      `INSERT INTO email_logs (id, workspace_id, lead_id, template_id, campaign_id, enrollment_id, email_config_id,
+                               tracking_token, status, subject)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)`,
+>>>>>>> Stashed changes
       [
         args.logId,
         args.workspaceId,
@@ -331,6 +353,10 @@ export class EmailDispatcherService {
         args.templateId,
         args.campaignId,
         args.enrollmentId,
+<<<<<<< Updated upstream
+=======
+        args.emailConfigId,
+>>>>>>> Stashed changes
         args.trackingToken,
         args.subject.slice(0, 512),
       ],

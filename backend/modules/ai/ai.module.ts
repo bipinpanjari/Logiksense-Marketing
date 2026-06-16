@@ -8,6 +8,10 @@ import { EnrichmentService } from './enrichment.service';
 import { AiSettingsService } from './ai-settings.service';
 import { AiController } from './ai.controller';
 import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service';
+<<<<<<< Updated upstream
+=======
+import { ApolloService } from './apollo.service';
+>>>>>>> Stashed changes
 
 @Module({
   controllers: [AiController],
@@ -20,6 +24,10 @@ import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service
     EnrichmentService,
     AiSettingsService,
     WebsiteDigestRepBriefService,
+<<<<<<< Updated upstream
+=======
+    ApolloService,
+>>>>>>> Stashed changes
   ],
   exports: [
     NameDetectorService,
@@ -28,6 +36,10 @@ import { WebsiteDigestRepBriefService } from './website-digest-rep-brief.service
     AiUsageService,
     LlmGatewayService,
     WebsiteDigestRepBriefService,
+<<<<<<< Updated upstream
+=======
+    ApolloService,
+>>>>>>> Stashed changes
   ],
 })
 export class AiModule {}

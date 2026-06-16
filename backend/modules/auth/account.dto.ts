@@ -16,6 +16,20 @@ export class UpdateProfileDto {
   email?: string;
 }
 
+<<<<<<< Updated upstream
+=======
+export class ChangePasswordDto {
+  @IsNotEmpty()
+  @IsString()
+  currentPassword!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  newPassword!: string;
+}
+
+>>>>>>> Stashed changes
 export class UpdateWorkspaceSettingsDto {
   @IsOptional()
   @IsString()
@@ -34,4 +48,13 @@ export class UpdateWorkspaceSettingsDto {
     campaignAlerts?: boolean;
     weeklyDigest?: boolean;
   };
+<<<<<<< Updated upstream
+=======
+
+  @IsOptional()
+  scraper?: {
+    noWebsiteSequenceId?: string;
+    autoEnrollNoWebsite?: boolean;
+  };
+>>>>>>> Stashed changes
 }

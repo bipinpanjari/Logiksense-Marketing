@@ -1,0 +1,7 @@
+\node_modules\
+\.git\
+\.next\
+\dist\
+\.venv\
+\venv\
+\__pycache__\

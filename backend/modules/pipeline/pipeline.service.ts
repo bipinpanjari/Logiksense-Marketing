@@ -46,7 +46,12 @@ export interface TimelineEvent {
     | 'bounced'
     | 'unsubscribed'
     | 'note'
+<<<<<<< Updated upstream
     | 'stage_change';
+=======
+    | 'stage_change'
+    | 'linkedin_message';
+>>>>>>> Stashed changes
   data?: Record<string, unknown>;
 }
 
@@ -165,9 +170,52 @@ export class PipelineService {
   async timeline(workspaceId: string, leadId: string) {
     const db = getDatabase();
     const contactRes = await db.query(
+<<<<<<< Updated upstream
       `SELECT timeline FROM contacts WHERE workspace_id = $1 AND lead_id = $2`,
       [workspaceId, leadId],
     );
+=======
+      `SELECT c.timeline, l.linkedin_url 
+       FROM contacts c
+       JOIN leads l ON l.id = c.lead_id
+       WHERE c.workspace_id = $1 AND c.lead_id = $2`,
+      [workspaceId, leadId],
+    );
+
+    const events: TimelineEvent[] = (contactRes.rows[0]?.timeline as TimelineEvent[]) ?? [];
+    const linkedinUrl = contactRes.rows[0]?.linkedin_url;
+
+    if (linkedinUrl) {
+      try {
+        const linkedinMessages = await db.query(
+          `SELECT m.content, m.creation_date as at, m.is_outgoing
+           FROM chat_chatmessage m
+           JOIN crm_deal d ON d.id = m.object_id
+           JOIN crm_lead l ON l.id = d.lead_id
+           WHERE m.content_type_id = 9 AND l.linkedin_url = $1
+           ORDER BY m.creation_date ASC`,
+          [linkedinUrl],
+        );
+
+        for (const row of linkedinMessages.rows) {
+          events.push({
+            at: row.at.toISOString(),
+            type: 'linkedin_message',
+            data: {
+              content: row.content,
+              isOutgoing: row.is_outgoing,
+            },
+          });
+        }
+      } catch (err) {
+        this.logger.error(`Failed to fetch LinkedIn messages: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    // Sort all events by date to ensure unified view
+    events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+>>>>>>> Stashed changes
     const notesRes = await db.query(
       `SELECT cn.id, cn.body, cn.created_at, c.first_name AS author_first_name, c.last_name AS author_last_name
        FROM contact_notes cn
@@ -177,7 +225,11 @@ export class PipelineService {
       [workspaceId, leadId],
     );
     return {
+<<<<<<< Updated upstream
       events: (contactRes.rows[0]?.timeline as TimelineEvent[]) ?? [],
+=======
+      events,
+>>>>>>> Stashed changes
       notes: notesRes.rows,
     };
   }

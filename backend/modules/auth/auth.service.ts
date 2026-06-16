@@ -1,11 +1,23 @@
+<<<<<<< Updated upstream
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SignOptions } from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
+=======
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { SignOptions } from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
+import { generateSecret, generateURI, verifySync } from 'otplib';
+import { toDataURL } from 'qrcode';
+>>>>>>> Stashed changes
 import { Prisma } from '@prisma/client';
 import { CreateUserDto, LoginUserDto, SignUpResponseDto } from '../../shared/types';
 import { PrismaService } from '../../shared/prisma.service';
 import { EmailValidationService } from './email-validation.service';
+<<<<<<< Updated upstream
 
 @Injectable()
 export class AuthService {
@@ -14,6 +26,129 @@ export class AuthService {
     private prisma: PrismaService,
     private emailValidation: EmailValidationService
   ) {}
+=======
+import { VaultService } from '../../shared/vault.service';
+
+@Injectable()
+export class AuthService {
+  private transporter: nodemailer.Transporter | null = null;
+  private readonly fromEmail: string;
+
+  constructor(
+    private jwtService: JwtService,
+    private prisma: PrismaService,
+    private emailValidation: EmailValidationService,
+    private vault: VaultService
+  ) {
+    this.fromEmail = process.env.SMTP_FROM || 'noreply@logik-sense.com';
+    const host = process.env.SMTP_HOST;
+    if (host) {
+      this.transporter = nodemailer.createTransport({
+        host,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER ? {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
+        } : undefined,
+      });
+    }
+  }
+
+  private async sendAuthEmail(to: string, subject: string, html: string) {
+    if (!this.transporter) {
+      console.warn('SMTP not configured in .env, skipping email send');
+      return;
+    }
+    try {
+      await this.transporter.sendMail({
+        from: this.fromEmail,
+        to,
+        subject,
+        html,
+      });
+    } catch (error) {
+      console.error('Failed to send auth email:', error);
+    }
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.prisma.customer.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (!user) {
+      // Don't leak user existence? Actually mostly we just return 200 anyway
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    await this.prisma.customer.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: new Date(Date.now() + 3600000), // 1 hour
+      },
+    });
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    
+    await this.sendAuthEmail(
+      user.email,
+      'Password Reset Request - LogikSense',
+      `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2>Password Reset Request</h2>
+        <p>Hi ${user.firstName || 'there'},</p>
+        <p>You requested a password reset for your LogikSense account. Click the button below to set a new password:</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        <p>This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+        <p style="font-size: 12px; color: #888;">LogikSense Marketing Automation Suite</p>
+      </div>
+      `
+    );
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await this.prisma.customer.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Token is invalid or has expired');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.customer.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        // If MFA was causing friction or they forgot everything, we keep it enabled but they reset password
+      },
+    });
+  }
+>>>>>>> Stashed changes
 
   private resolveExpiry(value: string | undefined, fallback: SignOptions['expiresIn']): SignOptions['expiresIn'] {
     if (!value) return fallback;
@@ -40,7 +175,11 @@ export class AuthService {
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
 
+<<<<<<< Updated upstream
       const result = await this.prisma.$transaction(async (tx) => {
+=======
+      const result = await this.prisma.$transaction(async (tx: any) => {
+>>>>>>> Stashed changes
         const user = await tx.customer.create({
           data: {
             email,
@@ -69,6 +208,18 @@ export class AuthService {
           select: { id: true, name: true },
         });
 
+<<<<<<< Updated upstream
+=======
+        // Add owner to members table
+        await tx.workspaceMember.create({
+          data: {
+            workspaceId: workspace.id,
+            customerId: user.id,
+            role: 'owner',
+          },
+        });
+
+>>>>>>> Stashed changes
         return { user, workspace };
       });
 
@@ -81,6 +232,10 @@ export class AuthService {
           firstName: result.user.firstName || '',
           lastName: result.user.lastName || '',
           onboardingCompleted: result.user.onboardingCompleted,
+<<<<<<< Updated upstream
+=======
+          twoFactorEnabled: false,
+>>>>>>> Stashed changes
         },
         workspace: {
           id: result.workspace.id,
@@ -100,6 +255,10 @@ export class AuthService {
 
     try {
       // Find user
+<<<<<<< Updated upstream
+=======
+      console.log(`DEBUG: Login attempt for email: "${email}"`);
+>>>>>>> Stashed changes
       const user = await this.prisma.customer.findFirst({
         where: { email: { equals: email, mode: 'insensitive' } },
         select: {
@@ -110,19 +269,58 @@ export class AuthService {
           lastName: true,
           onboardingCompleted: true,
           role: true,
+<<<<<<< Updated upstream
+=======
+          twoFactorEnabled: true,
+          twoFactorSecret: true,
+>>>>>>> Stashed changes
         },
       });
 
       if (!user) {
+<<<<<<< Updated upstream
+=======
+        console.log(`DEBUG: User not found for email: "${email}"`);
+>>>>>>> Stashed changes
         throw new UnauthorizedException('Invalid credentials');
       }
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+<<<<<<< Updated upstream
+=======
+      console.log(`DEBUG: Password valid for "${email}": ${isPasswordValid}`);
+>>>>>>> Stashed changes
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials');
       }
 
+<<<<<<< Updated upstream
+=======
+      // Handle MFA
+      if (user.twoFactorEnabled) {
+        const mfaPayload = { userId: user.id, email: user.email, sub: 'mfa' };
+        const tempToken = this.jwtService.sign(mfaPayload, {
+          secret: process.env.JWT_SECRET,
+          expiresIn: '5m',
+        });
+        
+        return {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            onboardingCompleted: user.onboardingCompleted,
+            twoFactorEnabled: true,
+          },
+          workspace: { id: '', name: '' },
+          mfaRequired: true,
+          tempToken,
+        };
+      }
+
+>>>>>>> Stashed changes
       // Get default workspace
       const workspace = await this.prisma.workspace.findFirst({
         where: { customerId: user.id },
@@ -143,6 +341,10 @@ export class AuthService {
           firstName: user.firstName || '',
           lastName: user.lastName || '',
           onboardingCompleted: user.onboardingCompleted,
+<<<<<<< Updated upstream
+=======
+          twoFactorEnabled: false,
+>>>>>>> Stashed changes
         },
         workspace: {
           id: workspace.id,
@@ -223,7 +425,18 @@ export class AuthService {
   async validateUser(userId: string): Promise<any> {
     const user = await this.prisma.customer.findUnique({
       where: { id: userId },
+<<<<<<< Updated upstream
       select: { id: true, email: true, firstName: true, lastName: true, onboardingCompleted: true },
+=======
+      select: { 
+        id: true, 
+        email: true, 
+        firstName: true, 
+        lastName: true, 
+        onboardingCompleted: true,
+        twoFactorEnabled: true,
+      },
+>>>>>>> Stashed changes
     });
     return user || null;
   }
@@ -244,6 +457,10 @@ export class AuthService {
         firstName: true,
         lastName: true,
         onboardingCompleted: true,
+<<<<<<< Updated upstream
+=======
+        twoFactorEnabled: true,
+>>>>>>> Stashed changes
         createdAt: true,
       },
     });
@@ -274,11 +491,42 @@ export class AuthService {
         firstName: true,
         lastName: true,
         onboardingCompleted: true,
+<<<<<<< Updated upstream
+=======
+        twoFactorEnabled: true,
+>>>>>>> Stashed changes
         updatedAt: true,
       },
     });
   }
 
+<<<<<<< Updated upstream
+=======
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.customer.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('Current password does not match');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.customer.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { success: true, message: 'Password changed successfully' };
+  }
+
+>>>>>>> Stashed changes
   async getWorkspaceSettings(userId: string, workspaceId: string) {
     const workspace = await this.prisma.workspace.findFirst({
       where: { id: workspaceId, customerId: userId },
@@ -293,7 +541,16 @@ export class AuthService {
   async updateWorkspaceSettings(
     userId: string,
     workspaceId: string,
+<<<<<<< Updated upstream
     payload: { workspaceName?: string; timezone?: string; notifications?: Record<string, boolean> }
+=======
+    payload: { 
+      workspaceName?: string; 
+      timezone?: string; 
+      notifications?: Record<string, boolean>;
+      scraper?: Record<string, any>;
+    }
+>>>>>>> Stashed changes
   ) {
     const workspace = await this.prisma.workspace.findFirst({
       where: { id: workspaceId, customerId: userId },
@@ -326,8 +583,17 @@ export class AuthService {
         ...(typeof currentSettings.notifications === 'object' && currentSettings.notifications ? (currentSettings.notifications as Record<string, unknown>) : {}),
         ...(payload.notifications || {}),
       },
+<<<<<<< Updated upstream
     };
     const nextSettings = JSON.parse(JSON.stringify(nextSettingsObject)) as Prisma.InputJsonValue;
+=======
+      scraper: {
+        ...(typeof currentSettings.scraper === 'object' && currentSettings.scraper ? (currentSettings.scraper as Record<string, unknown>) : {}),
+        ...(payload.scraper || {}),
+      },
+    };
+    const nextSettings = JSON.parse(JSON.stringify(nextSettingsObject)) as any;
+>>>>>>> Stashed changes
 
     return this.prisma.workspace.update({
       where: { id: workspaceId },
@@ -351,6 +617,10 @@ export class AuthService {
       domain: string;
       dkimSelector?: string;
       skipDnsValidation?: boolean;
+<<<<<<< Updated upstream
+=======
+      termsAccepted?: boolean;
+>>>>>>> Stashed changes
     }
   ): Promise<{
     success: boolean;
@@ -385,7 +655,11 @@ export class AuthService {
       throw new BadRequestException('Email domain validation failed. Please provide a valid work domain.');
     }
 
+<<<<<<< Updated upstream
     await this.prisma.$transaction(async (tx) => {
+=======
+    await this.prisma.$transaction(async (tx: any) => {
+>>>>>>> Stashed changes
       const [firstName, ...rest] = staffName.split(' ').filter(Boolean);
       const lastName = rest.join(' ');
 
@@ -395,6 +669,11 @@ export class AuthService {
           firstName: firstName || null,
           lastName: lastName || null,
           onboardingCompleted: true,
+<<<<<<< Updated upstream
+=======
+          termsAccepted: payload.termsAccepted ?? false,
+          termsAcceptedAt: payload.termsAccepted ? new Date() : null,
+>>>>>>> Stashed changes
         },
       });
 
@@ -489,4 +768,156 @@ export class AuthService {
       },
     };
   }
+<<<<<<< Updated upstream
+=======
+
+  // ==================== 2FA / MFA ====================
+
+  async generateTwoFactorSecret(userId: string) {
+    const user = await this.prisma.customer.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) throw new BadRequestException('User not found');
+
+    const secret = generateSecret();
+    const otpauthUrl = generateURI({
+      issuer: 'LogikMarket',
+      label: user.email,
+      secret,
+    });
+    const qrCode = await toDataURL(otpauthUrl);
+
+    // Store encrypted secret temporarily but don't enable yet
+    const encryptedSecret = this.vault.encrypt(secret);
+    await this.prisma.customer.update({
+      where: { id: userId },
+      data: { twoFactorSecret: encryptedSecret },
+    });
+
+    return { secret, qrCode };
+  }
+
+  async verifyTwoFactorCode(userId: string, code: string) {
+    const user = await this.prisma.customer.findUnique({
+      where: { id: userId },
+      select: { twoFactorSecret: true, recoveryCodes: true },
+    });
+
+    if (!user?.twoFactorSecret) {
+      throw new BadRequestException('2FA not initialized');
+    }
+
+    // Check TOTP code
+    const secret = this.vault.decrypt(user.twoFactorSecret);
+    const { valid: isValid } = verifySync({
+      token: code.trim(),
+      secret,
+    });
+
+    if (isValid) return true;
+
+    // Check recovery codes if 6-digit TOTP fails
+    if (user.recoveryCodes) {
+      const codes: string[] = JSON.parse(user.recoveryCodes);
+      const matchedIndex = codes.findIndex((c: string) => bcrypt.compareSync(code.trim(), c));
+      
+      if (matchedIndex !== -1) {
+        // Remove used recovery code
+        codes.splice(matchedIndex, 1);
+        await this.prisma.customer.update({
+          where: { id: userId },
+          data: { recoveryCodes: JSON.stringify(codes) },
+        });
+        return true;
+      }
+    }
+
+    throw new UnauthorizedException('Invalid authenticator code');
+  }
+
+  async enableTwoFactor(userId: string, code: string) {
+    await this.verifyTwoFactorCode(userId, code);
+
+    // Generate 10 recovery codes
+    const rawCodes = Array.from({ length: 10 }, () => 
+      crypto.randomBytes(4).toString('hex').toUpperCase()
+    );
+    const hashedCodes = rawCodes.map(c => bcrypt.hashSync(c, 10));
+
+    await this.prisma.customer.update({
+      where: { id: userId },
+      data: { 
+        twoFactorEnabled: true,
+        recoveryCodes: JSON.stringify(hashedCodes)
+      },
+    });
+
+    return { success: true, recoveryCodes: rawCodes };
+  }
+
+  async disableTwoFactor(userId: string, code: string) {
+    await this.verifyTwoFactorCode(userId, code);
+    await this.prisma.customer.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: false, twoFactorSecret: null },
+    });
+    return { success: true };
+  }
+
+  /**
+   * Complete login after MFA code verification
+   */
+  async loginWithMfa(tempToken: string, code: string): Promise<SignUpResponseDto> {
+    try {
+      const decoded = this.jwtService.verify(tempToken, {
+        secret: process.env.JWT_SECRET,
+      }) as { userId: string };
+
+      await this.verifyTwoFactorCode(decoded.userId, code);
+
+      const user = await this.prisma.customer.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          onboardingCompleted: true,
+          role: true,
+        },
+      });
+
+      if (!user) throw new UnauthorizedException();
+
+      const workspace = await this.prisma.workspace.findFirst({
+        where: { customerId: user.id },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, name: true },
+      });
+
+      if (!workspace) throw new UnauthorizedException('No workspace found');
+
+      const tokens = this.generateTokens(user.id, workspace.id, user.email, user.role);
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          onboardingCompleted: user.onboardingCompleted,
+          twoFactorEnabled: true,
+        },
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+        },
+        tokens,
+      };
+    } catch (e) {
+      throw new UnauthorizedException('MFA verification failed');
+    }
+  }
+>>>>>>> Stashed changes
 }

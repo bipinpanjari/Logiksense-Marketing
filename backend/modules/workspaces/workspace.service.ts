@@ -13,17 +13,38 @@ export class WorkspaceService {
       [customerId, name, JSON.stringify({})]
     );
 
+<<<<<<< Updated upstream
     return result.rows[0];
+=======
+    const workspace = result.rows[0];
+
+    // Add owner as member
+    await db.query(
+      `INSERT INTO workspace_members (workspace_id, customer_id, role)
+       VALUES ($1, $2, $3)`,
+      [workspace.id, customerId, 'owner']
+    );
+
+    return workspace;
+>>>>>>> Stashed changes
   }
 
   async getWorkspaces(customerId: string) {
     const db = getDatabase();
 
     const result = await db.query(
+<<<<<<< Updated upstream
       `SELECT id, name, settings, is_active, created_at
        FROM workspaces
        WHERE customer_id = $1
        ORDER BY created_at DESC`,
+=======
+      `SELECT w.id, w.name, w.settings, w.is_active, w.created_at, m.role
+       FROM workspaces w
+       JOIN workspace_members m ON w.id = m.workspace_id
+       WHERE m.customer_id = $1
+       ORDER BY w.created_at DESC`,
+>>>>>>> Stashed changes
       [customerId]
     );
 
@@ -34,9 +55,16 @@ export class WorkspaceService {
     const db = getDatabase();
 
     const result = await db.query(
+<<<<<<< Updated upstream
       `SELECT id, name, settings, is_active, created_at
        FROM workspaces
        WHERE id = $1 AND customer_id = $2`,
+=======
+      `SELECT w.id, w.name, w.settings, w.is_active, w.created_at, m.role
+       FROM workspaces w
+       JOIN workspace_members m ON w.id = m.workspace_id
+       WHERE w.id = $1 AND m.customer_id = $2`,
+>>>>>>> Stashed changes
       [workspaceId, customerId]
     );
 
@@ -50,8 +78,16 @@ export class WorkspaceService {
   async updateWorkspace(workspaceId: string, customerId: string, updates: any) {
     const db = getDatabase();
 
+<<<<<<< Updated upstream
     // Verify ownership
     const workspace = await this.getWorkspace(workspaceId, customerId);
+=======
+    // Verify ownership/admin rights
+    const workspace = await this.getWorkspace(workspaceId, customerId);
+    if (workspace.role !== 'owner' && workspace.role !== 'admin') {
+      throw new ForbiddenException('You do not have permission to update this workspace');
+    }
+>>>>>>> Stashed changes
 
     const updateFields: string[] = [];
     const updateValues: any[] = [];

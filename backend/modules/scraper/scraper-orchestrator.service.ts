@@ -6,6 +6,12 @@ import { closeBrowser, setupBrowser, type BrowserSetup } from './utils/browser-c
 import { GoogleMapsScraperService, GoogleMapsResult } from './gmaps-scraper.service';
 import { WebsiteScraperService, type WebsiteScrapeResult } from './website-scraper.service';
 import { WebsiteDigestRepBriefService } from '../ai/website-digest-rep-brief.service';
+<<<<<<< Updated upstream
+=======
+import { LinkedinProfileScraperService } from '../linkedin/linkedin-profile-scraper.service';
+import { ApolloService } from '../ai/apollo.service';
+import { SequenceEngineService } from '../email-engine/sequence-engine.service';
+>>>>>>> Stashed changes
 
 export interface OrchestratorInput {
   jobId: string;
@@ -33,6 +39,12 @@ export class ScraperOrchestratorService {
     private readonly gmaps: GoogleMapsScraperService,
     private readonly website: WebsiteScraperService,
     private readonly digestRepBrief: WebsiteDigestRepBriefService,
+<<<<<<< Updated upstream
+=======
+    private readonly linkedinEmployeeScraper: LinkedinProfileScraperService,
+    private readonly apollo: ApolloService,
+    private readonly sequenceEngine: SequenceEngineService,
+>>>>>>> Stashed changes
   ) {}
 
   async run(input: OrchestratorInput): Promise<OrchestratorResult> {
@@ -41,7 +53,11 @@ export class ScraperOrchestratorService {
 
     const jobRes = await db.query(
       `SELECT sj.id, sj.workspace_id, sj.customer_id, sj.provider, sj.query, sj.business_type,
+<<<<<<< Updated upstream
               sj.city, sj.country, sj.target_limit, w.scraping_enabled
+=======
+              sj.city, sj.country, sj.target_limit, sj.scrape_options, w.scraping_enabled, w.settings as workspace_settings
+>>>>>>> Stashed changes
        FROM scraper_jobs sj
        JOIN workspaces w ON w.id = sj.workspace_id
        WHERE sj.id = $1::uuid`,
@@ -203,10 +219,146 @@ export class ScraperOrchestratorService {
       }
     } else {
       await this.enrichSearchItemAi(db, job, itemId);
+<<<<<<< Updated upstream
     }
     return { processed: true, withEmail };
   }
 
+=======
+      if (!place.hasWebsite) {
+        await this.promoteNoWebsiteBusiness(db, job, place);
+      }
+    }
+
+    // New Step: Apollo Lead Enrichment Fallback
+    if (!withEmail && place.websiteUrl) {
+        const domain = place.websiteUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        if (domain) {
+            this.logger.log(`[job ${jobId}]   no emails found via crawl, attempting Apollo enrichment for ${domain}...`);
+            const apolloPerson = await this.apollo.searchPeople(job.workspace_id, {
+                domains: [domain],
+                titles: ['CEO', 'Founder', 'Owner', 'Managing Director'],
+                page: 1,
+                perPage: 1
+            });
+            
+            if (apolloPerson && apolloPerson.people.length > 0) {
+                const p = apolloPerson.people[0];
+                this.logger.log(`[job ${jobId}]     found decision maker via Apollo: ${p.name} (${p.title})`);
+                // We'll reveal if it's the only way to get a lead, but to be cautious with credits, 
+                // we might want to check the email status first.
+                if (p.email) {
+                    withEmail = true;
+                    await this.promoteApolloPersonToLeads(db, job, place, p);
+                } else {
+                    // It exists but email is hidden. We COULD reveal it but we want to be "CAUTIOUS"
+                    // For now, let's just log it. In a real run, we'd probably want a setting "Reveal Apollo emails"
+                }
+            }
+        }
+    }
+
+    // New Step: LinkedIn Employee Scraping
+    const scrapeOptions = (job.scrapeOptions || {}) as any;
+    if (scrapeOptions.linkedinEnabled) {
+      await this.setProgress(
+        db,
+        jobId,
+        bull,
+        Math.min(98, phasePct + 2),
+        `Place ${idx1}/${total}: ${nameShort} — searching LinkedIn employees`,
+      );
+      this.logger.log(`[job ${jobId}]   searching LinkedIn employees…`);
+      const employees = await this.linkedinEmployeeScraper.findAndScrapeEmployees(
+        context,
+        place.companyName,
+        place.websiteUrl || null,
+        {
+          targetTitles: scrapeOptions.linkedinTitles,
+          limit: scrapeOptions.linkedinLimit || 3,
+          workspaceId: job.workspace_id,
+        },
+      );
+
+      if (employees.length > 0) {
+        this.logger.log(`[job ${jobId}]     found ${employees.length} employees on LinkedIn`);
+        // Add employees to leads
+        for (const emp of employees) {
+          const empEmails = emp.email ? [emp.email] : [];
+          // Use a modified promoteToLeads or similar logic
+          await this.promoteEmployeeToLeads(db, job, place, emp);
+        }
+      }
+    }
+
+    return { processed: true, withEmail };
+  }
+
+  private async promoteApolloPersonToLeads(
+    db: ReturnType<typeof getDatabase>,
+    job: any,
+    place: GoogleMapsResult,
+    p: any,
+  ) {
+    const email = p.email;
+    if (!email) return;
+
+    const existing = await db.query(
+      `SELECT id FROM leads WHERE workspace_id = $1::uuid AND lower(email) = $2 LIMIT 1`,
+      [job.workspace_id, email.toLowerCase()],
+    );
+
+    if (existing.rows.length === 0) {
+      await db.query(
+        `INSERT INTO leads (workspace_id, email, first_name, last_name, job_title, company, source, created_by)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6, 'scraper:apollo', $7::uuid)`,
+        [job.workspace_id, email, p.firstName, p.lastName, p.title, place.companyName, job.customer_id],
+      );
+    }
+  }
+
+  private async promoteEmployeeToLeads(
+    db: ReturnType<typeof getDatabase>,
+    job: any,
+    place: GoogleMapsResult,
+    emp: any,
+  ) {
+    const email = emp.email || `guessed_${emp.firstName}.${emp.lastName}@placeholder.com`; // Placeholder if no email
+    
+    const existing = await db.query(
+      `SELECT id FROM leads WHERE workspace_id = $1::uuid AND lower(email) = $2 LIMIT 1`,
+      [job.workspace_id, email.toLowerCase()],
+    );
+    
+    let leadId: string;
+    if (existing.rows.length > 0) {
+      leadId = existing.rows[0].id;
+      await db.query(
+        `UPDATE leads SET 
+          first_name = COALESCE(first_name, $2),
+          last_name = COALESCE(last_name, $3),
+          job_title = COALESCE(job_title, $4),
+          company = COALESCE(company, $5),
+          source = COALESCE(source, 'scraper:linkedin'),
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [leadId, emp.firstName, emp.lastName, emp.jobTitle, place.companyName],
+      );
+    } else {
+      const insert = await db.query(
+        `INSERT INTO leads (workspace_id, email, first_name, last_name, job_title, company, source, created_by)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6, 'scraper:linkedin', $7::uuid)
+         RETURNING id`,
+        [job.workspace_id, email, emp.firstName, emp.lastName, emp.jobTitle, place.companyName, job.customer_id],
+      );
+      leadId = insert.rows[0].id;
+    }
+
+    // Attach to search item if needed
+    // ...
+  }
+
+>>>>>>> Stashed changes
   private async setProgress(
     db: ReturnType<typeof getDatabase>,
     jobId: string,
@@ -363,6 +515,56 @@ export class ScraperOrchestratorService {
     if (id) await this.enrichSearchItemAi(db, job, id);
   }
 
+<<<<<<< Updated upstream
+=======
+  private async promoteNoWebsiteBusiness(
+    db: ReturnType<typeof getDatabase>,
+    job: any,
+    place: GoogleMapsResult,
+  ) {
+    // Generate a placeholder email since we don't have one, but we want it in the CRM
+    const placeholderEmail = `contact@${place.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.no-website.local`;
+    
+    const existing = await db.query(
+      `SELECT id FROM leads WHERE workspace_id = $1::uuid AND (lower(email) = $2 OR company = $3) LIMIT 1`,
+      [job.workspace_id, placeholderEmail, place.companyName],
+    );
+
+    let leadId: string;
+    if (existing.rows.length > 0) {
+      leadId = existing.rows[0].id;
+      await db.query(
+        `UPDATE leads SET 
+          tags = array_append(ARRAY_REMOVE(tags, 'website-prospect'), 'website-prospect'),
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [leadId],
+      );
+    } else {
+      const insert = await db.query(
+        `INSERT INTO leads (workspace_id, email, company, phone, city, country, source, tags, created_by)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6, 'scraper:gmaps', ARRAY['website-prospect'], $7::uuid)
+         RETURNING id`,
+        [job.workspace_id, placeholderEmail, place.companyName, place.phone || null, job.city, job.country, job.customer_id],
+      );
+      leadId = insert.rows[0].id;
+    }
+
+    // Handle Automation: Enroll in sequence if configured
+    const workspaceSettings = (job.workspace_settings || {}) as any;
+    const scraperSettings = workspaceSettings.scraper || {};
+    
+    if (scraperSettings.autoEnrollNoWebsite && scraperSettings.noWebsiteSequenceId) {
+      try {
+        await this.sequenceEngine.enrollLead(job.workspace_id, scraperSettings.noWebsiteSequenceId, leadId);
+        this.logger.log(`[job ${job.id}]   auto-enrolled lead ${leadId} in sequence ${scraperSettings.noWebsiteSequenceId}`);
+      } catch (err: any) {
+        this.logger.error(`[job ${job.id}]   failed to auto-enroll lead ${leadId}: ${err.message}`);
+      }
+    }
+  }
+
+>>>>>>> Stashed changes
   private async promoteToLeads(
     db: ReturnType<typeof getDatabase>,
     job: any,

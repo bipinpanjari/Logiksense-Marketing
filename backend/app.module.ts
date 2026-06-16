@@ -1,5 +1,9 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+<<<<<<< Updated upstream
+=======
+import { ScheduleModule } from '@nestjs/schedule';
+>>>>>>> Stashed changes
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -13,14 +17,26 @@ import { RegistrationService } from './modules/auth/registration.service';
 import { EmailValidationService } from './modules/auth/email-validation.service';
 import { AuthController } from './modules/auth/auth.controller';
 import { WorkspaceService } from './modules/workspaces/workspace.service';
+<<<<<<< Updated upstream
 import { WorkspaceController } from './modules/workspaces/workspace.controller';
+=======
+import { TeamService } from './modules/workspaces/team.service';
+import { WorkspaceController } from './modules/workspaces/workspace.controller';
+import { TeamController } from './modules/workspaces/team.controller';
+>>>>>>> Stashed changes
 import { LeadService } from './modules/leads/lead.service';
 import { LeadImportService } from './modules/leads/lead-import.service';
 import { LeadExtractionService } from './modules/leads/lead-extraction.service';
 import { LeadScoringService } from './modules/leads/lead-scoring.service';
 import { ContactSegmentationService } from './modules/leads/contact-segmentation.service';
 import { EmailAnalyticsService } from './modules/leads/email-analytics.service';
+<<<<<<< Updated upstream
 import { LeadController } from './modules/leads/lead.controller';
+=======
+import { FieldManagementService } from './modules/leads/field-management.service';
+import { LeadController } from './modules/leads/lead.controller';
+import { LeadDiscoveryController } from './modules/leads/lead-discovery.controller';
+>>>>>>> Stashed changes
 import { WebhookService } from './modules/leads/webhook.service';
 import { WebhookController } from './modules/leads/webhook.controller';
 import { ContactService } from './modules/contacts/contact.service';
@@ -37,7 +53,11 @@ import { AiModule } from './modules/ai/ai.module';
 import { PipelineModule } from './modules/pipeline/pipeline.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { ObservabilityModule } from './modules/observability/observability.module';
+<<<<<<< Updated upstream
 
+=======
+import { OpenOutreachModule } from './modules/openoutreach/openoutreach.module';
+>>>>>>> Stashed changes
 const isDev = process.env.NODE_ENV !== 'production';
 
 @Module({
@@ -80,6 +100,10 @@ const isDev = process.env.NODE_ENV !== 'production';
       },
     ]),
     AppQueueModule.register(),
+<<<<<<< Updated upstream
+=======
+    ScheduleModule.forRoot(),
+>>>>>>> Stashed changes
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
@@ -93,11 +117,21 @@ const isDev = process.env.NODE_ENV !== 'production';
     PipelineModule,
     ComplianceModule,
     ObservabilityModule,
+<<<<<<< Updated upstream
+=======
+    OpenOutreachModule,
+>>>>>>> Stashed changes
   ],
   controllers: [
     AuthController,
     WorkspaceController,
+<<<<<<< Updated upstream
     LeadController,
+=======
+    TeamController,
+    LeadController,
+    LeadDiscoveryController,
+>>>>>>> Stashed changes
     WebhookController,
     ContactController,
     EmailController,
@@ -112,6 +146,10 @@ const isDev = process.env.NODE_ENV !== 'production';
     RegistrationService,
     EmailValidationService,
     WorkspaceService,
+<<<<<<< Updated upstream
+=======
+    TeamService,
+>>>>>>> Stashed changes
     PrismaService,
     VaultService,
     LeadService,
@@ -120,6 +158,10 @@ const isDev = process.env.NODE_ENV !== 'production';
     LeadScoringService,
     ContactSegmentationService,
     EmailAnalyticsService,
+<<<<<<< Updated upstream
+=======
+    FieldManagementService,
+>>>>>>> Stashed changes
     WebhookService,
     ContactService,
     EmailService,

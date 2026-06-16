@@ -19,6 +19,10 @@ import { LeadImportService } from './lead-import.service';
 import { LeadScoringService } from './lead-scoring.service';
 import { ContactSegmentationService, SegmentCriteria } from './contact-segmentation.service';
 import { EmailAnalyticsService } from './email-analytics.service';
+<<<<<<< Updated upstream
+=======
+import { FieldManagementService } from './field-management.service';
+>>>>>>> Stashed changes
 
 @Controller('api/leads')
 export class LeadController {
@@ -27,7 +31,12 @@ export class LeadController {
     private leadImportService: LeadImportService,
     private leadScoringService: LeadScoringService,
     private segmentationService: ContactSegmentationService,
+<<<<<<< Updated upstream
     private emailAnalyticsService: EmailAnalyticsService
+=======
+    private emailAnalyticsService: EmailAnalyticsService,
+    private fieldManagementService: FieldManagementService
+>>>>>>> Stashed changes
   ) {}
 
   private requireAuth(req: any) {
@@ -183,6 +192,57 @@ export class LeadController {
     return this.leadImportService.getImportHistory(user.workspaceId);
   }
 
+<<<<<<< Updated upstream
+=======
+  // ===== FIELD MANAGEMENT =====
+
+  @Get(':id/fields')
+  async getLeadFields(@Param('id') leadId: string, @Request() req: any) {
+    const user = this.requireAuth(req);
+    return this.fieldManagementService.getLeadFieldsState(user.workspaceId, leadId);
+  }
+
+  @Post(':id/fields/add')
+  async addFieldToLead(
+    @Param('id') leadId: string,
+    @Body() body: { fieldName: string; fieldValue: any },
+    @Request() req: any
+  ) {
+    const user = this.requireAuth(req);
+    await this.fieldManagementService.addField(user.workspaceId, leadId, body.fieldName, body.fieldValue);
+    return { success: true, message: 'Field added successfully' };
+  }
+
+  @Put(':id/fields/:fieldName')
+  async updateFieldInLead(
+    @Param('id') leadId: string,
+    @Param('fieldName') fieldName: string,
+    @Body() body: { fieldValue: any },
+    @Request() req: any
+  ) {
+    const user = this.requireAuth(req);
+    await this.fieldManagementService.updateField(user.workspaceId, leadId, fieldName, body.fieldValue);
+    return { success: true, message: 'Field updated successfully' };
+  }
+
+  @Delete(':id/fields/:fieldName')
+  async removeFieldFromLead(
+    @Param('id') leadId: string,
+    @Param('fieldName') fieldName: string,
+    @Request() req: any
+  ) {
+    const user = this.requireAuth(req);
+    await this.fieldManagementService.removeField(user.workspaceId, leadId, fieldName);
+    return { success: true, message: 'Field removed successfully' };
+  }
+
+  @Get('fields/available')
+  async getAvailableFields(@Request() req: any) {
+    this.requireAuth(req);
+    return this.fieldManagementService.getStandardFields();
+  }
+
+>>>>>>> Stashed changes
   // ===== LEAD SCORING =====
 
   private defaultScoringCriteria = {

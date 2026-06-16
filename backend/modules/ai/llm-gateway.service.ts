@@ -13,6 +13,11 @@ import type {
 const DEFAULT_OPENAI_MODEL = process.env.AI_DEFAULT_MODEL || 'gpt-4o-mini';
 const DEFAULT_ANTHROPIC_MODEL =
   process.env.AI_ANTHROPIC_DEFAULT_MODEL || 'claude-sonnet-4-6';
+<<<<<<< Updated upstream
+=======
+const DEFAULT_GEMINI_MODEL = process.env.AI_GEMINI_DEFAULT_MODEL || 'gemini-1.5-flash';
+const DEFAULT_OLLAMA_MODEL = process.env.AI_OLLAMA_DEFAULT_MODEL || 'mistral';
+>>>>>>> Stashed changes
 
 const ANTHROPIC_RETIRED_REPLACEMENTS: Record<string, string> = {
   'claude-3-5-sonnet-20241022': 'claude-sonnet-4-6',
@@ -49,7 +54,11 @@ export class LlmGatewayService {
   async resolveCredentials(workspaceId: string, requestModel?: string | null): Promise<ResolvedLlmCredentials | null> {
     const db = getDatabase();
     const wsRes = await db.query(
+<<<<<<< Updated upstream
       `SELECT ai_provider, ai_llm_vendor, ai_preferred_model, ai_openai_vault_ref, ai_anthropic_vault_ref
+=======
+      `SELECT ai_provider, ai_llm_vendor, ai_preferred_model, ai_openai_vault_ref, ai_anthropic_vault_ref, ai_gemini_vault_ref, ai_ollama_vault_ref
+>>>>>>> Stashed changes
        FROM workspaces WHERE id = $1::uuid`,
       [workspaceId],
     );
@@ -57,30 +66,68 @@ export class LlmGatewayService {
     if (!ws) return null;
 
     const vendor = ((ws.ai_llm_vendor || 'openai') as string).toLowerCase() as LlmVendor;
+<<<<<<< Updated upstream
     if (vendor !== 'openai' && vendor !== 'anthropic') {
+=======
+    if (!['openai', 'anthropic', 'gemini', 'ollama'].includes(vendor)) {
+>>>>>>> Stashed changes
       this.logger.warn(`[llm] invalid ai_llm_vendor for workspace=${workspaceId}`);
       return null;
     }
 
     const keyMode = (ws.ai_provider || 'platform') as 'platform' | 'byok';
     const preferred = typeof ws.ai_preferred_model === 'string' ? ws.ai_preferred_model.trim() : '';
+<<<<<<< Updated upstream
     const defaultModel = vendor === 'openai' ? DEFAULT_OPENAI_MODEL : DEFAULT_ANTHROPIC_MODEL;
+=======
+    
+    let defaultModel = DEFAULT_OPENAI_MODEL;
+    if (vendor === 'anthropic') defaultModel = DEFAULT_ANTHROPIC_MODEL;
+    else if (vendor === 'gemini') defaultModel = DEFAULT_GEMINI_MODEL;
+    else if (vendor === 'ollama') defaultModel = DEFAULT_OLLAMA_MODEL;
+
+>>>>>>> Stashed changes
     let model = (requestModel || preferred || defaultModel).trim();
     if (vendor === 'anthropic') {
       model = ANTHROPIC_RETIRED_REPLACEMENTS[model] ?? model;
     }
 
+<<<<<<< Updated upstream
     if (keyMode === 'byok') {
+=======
+    if (keyMode === 'byok' || vendor === 'ollama') {
+>>>>>>> Stashed changes
       if (vendor === 'openai') {
         const refKey = ws.ai_openai_vault_ref || `workspace:${workspaceId}`;
         const key = await this.vault.get({ scope: 'openai', refKey, workspaceId });
         if (!key) return null;
         return { vendor: 'openai', apiKey: key, byok: true, model };
       }
+<<<<<<< Updated upstream
       const refKey = ws.ai_anthropic_vault_ref || `workspace:${workspaceId}:anthropic`;
       const key = await this.vault.get({ scope: 'anthropic', refKey, workspaceId });
       if (!key) return null;
       return { vendor: 'anthropic', apiKey: key, byok: true, model };
+=======
+      if (vendor === 'anthropic') {
+        const refKey = ws.ai_anthropic_vault_ref || `workspace:${workspaceId}:anthropic`;
+        const key = await this.vault.get({ scope: 'anthropic', refKey, workspaceId });
+        if (!key) return null;
+        return { vendor: 'anthropic', apiKey: key, byok: true, model };
+      }
+      if (vendor === 'gemini') {
+        const refKey = ws.ai_gemini_vault_ref || `workspace:${workspaceId}:gemini`;
+        const key = await this.vault.get({ scope: 'gemini', refKey, workspaceId });
+        if (!key) return null;
+        return { vendor: 'gemini', apiKey: key, byok: true, model };
+      }
+      if (vendor === 'ollama') {
+        // Ollama usually connects to a local URL. We store it in the vault as well or use env.
+        const refKey = ws.ai_ollama_vault_ref || `workspace:${workspaceId}:ollama`;
+        const url = await this.vault.get({ scope: 'ollama', refKey, workspaceId });
+        return { vendor: 'ollama', apiKey: url || process.env.OLLAMA_HOST || 'http://localhost:11434', byok: true, model };
+      }
+>>>>>>> Stashed changes
     }
 
     if (vendor === 'openai') {
@@ -89,9 +136,25 @@ export class LlmGatewayService {
       return { vendor: 'openai', apiKey: platformKey, byok: false, model };
     }
 
+<<<<<<< Updated upstream
     const platformKey = process.env.ANTHROPIC_API_KEY;
     if (!platformKey) return null;
     return { vendor: 'anthropic', apiKey: platformKey, byok: false, model };
+=======
+    if (vendor === 'anthropic') {
+      const platformKey = process.env.ANTHROPIC_API_KEY;
+      if (!platformKey) return null;
+      return { vendor: 'anthropic', apiKey: platformKey, byok: false, model };
+    }
+
+    if (vendor === 'gemini') {
+      const platformKey = process.env.GEMINI_API_KEY;
+      if (!platformKey) return null;
+      return { vendor: 'gemini', apiKey: platformKey, byok: false, model };
+    }
+
+    return null;
+>>>>>>> Stashed changes
   }
 
   async chat(input: ChatCompletionInput): Promise<ChatCompletionResult | null> {
@@ -103,7 +166,20 @@ export class LlmGatewayService {
     if (cfg.vendor === 'openai') {
       return this.chatOpenAI(input, cfg);
     }
+<<<<<<< Updated upstream
     return this.chatAnthropic(input, cfg);
+=======
+    if (cfg.vendor === 'anthropic') {
+      return this.chatAnthropic(input, cfg);
+    }
+    if (cfg.vendor === 'gemini') {
+      return this.chatGemini(input, cfg);
+    }
+    if (cfg.vendor === 'ollama') {
+      return this.chatOllama(input, cfg);
+    }
+    return null;
+>>>>>>> Stashed changes
   }
 
   private async chatOpenAI(
@@ -217,6 +293,106 @@ export class LlmGatewayService {
     }
   }
 
+<<<<<<< Updated upstream
+=======
+  private async chatGemini(
+    input: ChatCompletionInput,
+    cfg: ResolvedLlmCredentials,
+  ): Promise<ChatCompletionResult | null> {
+    const model = input.model || cfg.model;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cfg.apiKey}`;
+
+    const contents = input.messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+    const systemMessage = input.messages.find((m) => m.role === 'system');
+    const system_instruction = systemMessage
+      ? { parts: [{ text: systemMessage.content }] }
+      : undefined;
+
+    try {
+      const res = await axios.post(
+        url,
+        {
+          contents,
+          system_instruction,
+          generationConfig: {
+            temperature: input.temperature ?? 0.7,
+            maxOutputTokens: input.maxTokens ?? 1024,
+            responseMimeType: input.jsonObject ? 'application/json' : 'text/plain',
+          },
+        },
+        { timeout: 60_000 },
+      );
+
+      const candidate = res.data?.candidates?.[0];
+      const text = candidate?.content?.parts?.[0]?.text?.trim() ?? '';
+      const usage = res.data?.usageMetadata ?? {};
+
+      return {
+        text,
+        model,
+        inputTokens: usage.promptTokenCount ?? 0,
+        outputTokens: usage.candidatesTokenCount ?? 0,
+        totalTokens: usage.totalTokenCount ?? 0,
+        byok: cfg.byok,
+        provider: 'gemini',
+      };
+    } catch (err: any) {
+      const detail = err?.response?.data?.[0]?.error?.message || err?.message || 'gemini-error';
+      this.logger.warn(`[llm] gemini chat failed: ${detail}`);
+      throw new Error(detail);
+    }
+  }
+
+  private async chatOllama(
+    input: ChatCompletionInput,
+    cfg: ResolvedLlmCredentials,
+  ): Promise<ChatCompletionResult | null> {
+    const model = input.model || cfg.model;
+    const baseUrl = cfg.apiKey; // We store host URL in apiKey field for Ollama
+    const url = `${baseUrl.replace(/\/$/, '')}/api/chat`;
+
+    try {
+      const res = await axios.post(
+        url,
+        {
+          model,
+          messages: input.messages,
+          stream: false,
+          options: {
+            temperature: input.temperature ?? 0.7,
+            num_predict: input.maxTokens ?? 1024,
+          },
+          format: input.jsonObject ? 'json' : undefined,
+        },
+        { timeout: 120_000 },
+      );
+
+      const text = res.data?.message?.content?.trim() ?? '';
+      const inTok = res.data?.prompt_eval_count ?? 0;
+      const outTok = res.data?.eval_count ?? 0;
+
+      return {
+        text,
+        model,
+        inputTokens: inTok,
+        outputTokens: outTok,
+        totalTokens: inTok + outTok,
+        byok: true,
+        provider: 'ollama',
+      };
+    } catch (err: any) {
+      this.logger.warn(`[llm] ollama chat failed: ${err.message}`);
+      throw new Error(`Ollama Error: ${err.message}`);
+    }
+  }
+
+>>>>>>> Stashed changes
   async storeOpenAiKey(workspaceId: string, apiKey: string): Promise<void> {
     const refKey = `workspace:${workspaceId}`;
     await this.vault.put({
@@ -288,4 +464,73 @@ export class LlmGatewayService {
       );
     }
   }
+<<<<<<< Updated upstream
+=======
+
+  async storeGeminiKey(workspaceId: string, apiKey: string): Promise<void> {
+    const refKey = `workspace:${workspaceId}:gemini`;
+    await this.vault.put({
+      scope: 'gemini',
+      refKey,
+      workspaceId,
+      value: apiKey,
+    });
+    const db = getDatabase();
+    await db.query(
+      `UPDATE workspaces SET ai_gemini_vault_ref = $1, ai_provider = 'byok', updated_at = CURRENT_TIMESTAMP WHERE id = $2::uuid`,
+      [refKey, workspaceId],
+    );
+  }
+
+  async removeGeminiKey(workspaceId: string): Promise<void> {
+    const db = getDatabase();
+    const r = await db.query(
+      `SELECT ai_llm_vendor, ai_gemini_vault_ref FROM workspaces WHERE id = $1::uuid`,
+      [workspaceId],
+    );
+    const row = r.rows[0];
+    const refKey = row?.ai_gemini_vault_ref || `workspace:${workspaceId}:gemini`;
+    await this.vault.delete({ scope: 'gemini', refKey, workspaceId });
+    await db.query(
+      `UPDATE workspaces SET ai_gemini_vault_ref = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1::uuid`,
+      [workspaceId],
+    );
+    if ((row?.ai_llm_vendor || 'openai') === 'gemini') {
+      await db.query(
+        `UPDATE workspaces SET ai_provider = 'platform', updated_at = CURRENT_TIMESTAMP WHERE id = $1::uuid`,
+        [workspaceId],
+      );
+    }
+  }
+
+  async storeOllamaHost(workspaceId: string, host: string): Promise<void> {
+    const refKey = `workspace:${workspaceId}:ollama`;
+    await this.vault.put({
+      scope: 'ollama',
+      refKey,
+      workspaceId,
+      value: host,
+    });
+    const db = getDatabase();
+    await db.query(
+      `UPDATE workspaces SET ai_ollama_vault_ref = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2::uuid`,
+      [refKey, workspaceId],
+    );
+  }
+
+  async removeOllamaHost(workspaceId: string): Promise<void> {
+    const db = getDatabase();
+    const r = await db.query(
+      `SELECT ai_ollama_vault_ref FROM workspaces WHERE id = $1::uuid`,
+      [workspaceId],
+    );
+    const row = r.rows[0];
+    const refKey = row?.ai_ollama_vault_ref || `workspace:${workspaceId}:ollama`;
+    await this.vault.delete({ scope: 'ollama', refKey, workspaceId });
+    await db.query(
+      `UPDATE workspaces SET ai_ollama_vault_ref = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1::uuid`,
+      [workspaceId],
+    );
+  }
+>>>>>>> Stashed changes
 }
