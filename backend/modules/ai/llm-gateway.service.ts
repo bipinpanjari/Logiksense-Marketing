@@ -13,11 +13,10 @@ import type {
 const DEFAULT_OPENAI_MODEL = process.env.AI_DEFAULT_MODEL || 'gpt-4o-mini';
 const DEFAULT_ANTHROPIC_MODEL =
   process.env.AI_ANTHROPIC_DEFAULT_MODEL || 'claude-sonnet-4-6';
-<<<<<<< Updated upstream
-=======
+
 const DEFAULT_GEMINI_MODEL = process.env.AI_GEMINI_DEFAULT_MODEL || 'gemini-1.5-flash';
 const DEFAULT_OLLAMA_MODEL = process.env.AI_OLLAMA_DEFAULT_MODEL || 'mistral';
->>>>>>> Stashed changes
+
 
 const ANTHROPIC_RETIRED_REPLACEMENTS: Record<string, string> = {
   'claude-3-5-sonnet-20241022': 'claude-sonnet-4-6',
@@ -54,11 +53,9 @@ export class LlmGatewayService {
   async resolveCredentials(workspaceId: string, requestModel?: string | null): Promise<ResolvedLlmCredentials | null> {
     const db = getDatabase();
     const wsRes = await db.query(
-<<<<<<< Updated upstream
-      `SELECT ai_provider, ai_llm_vendor, ai_preferred_model, ai_openai_vault_ref, ai_anthropic_vault_ref
-=======
+
       `SELECT ai_provider, ai_llm_vendor, ai_preferred_model, ai_openai_vault_ref, ai_anthropic_vault_ref, ai_gemini_vault_ref, ai_ollama_vault_ref
->>>>>>> Stashed changes
+
        FROM workspaces WHERE id = $1::uuid`,
       [workspaceId],
     );
@@ -66,49 +63,38 @@ export class LlmGatewayService {
     if (!ws) return null;
 
     const vendor = ((ws.ai_llm_vendor || 'openai') as string).toLowerCase() as LlmVendor;
-<<<<<<< Updated upstream
-    if (vendor !== 'openai' && vendor !== 'anthropic') {
-=======
+
     if (!['openai', 'anthropic', 'gemini', 'ollama'].includes(vendor)) {
->>>>>>> Stashed changes
+
       this.logger.warn(`[llm] invalid ai_llm_vendor for workspace=${workspaceId}`);
       return null;
     }
 
     const keyMode = (ws.ai_provider || 'platform') as 'platform' | 'byok';
     const preferred = typeof ws.ai_preferred_model === 'string' ? ws.ai_preferred_model.trim() : '';
-<<<<<<< Updated upstream
-    const defaultModel = vendor === 'openai' ? DEFAULT_OPENAI_MODEL : DEFAULT_ANTHROPIC_MODEL;
-=======
+
     
     let defaultModel = DEFAULT_OPENAI_MODEL;
     if (vendor === 'anthropic') defaultModel = DEFAULT_ANTHROPIC_MODEL;
     else if (vendor === 'gemini') defaultModel = DEFAULT_GEMINI_MODEL;
     else if (vendor === 'ollama') defaultModel = DEFAULT_OLLAMA_MODEL;
 
->>>>>>> Stashed changes
+
     let model = (requestModel || preferred || defaultModel).trim();
     if (vendor === 'anthropic') {
       model = ANTHROPIC_RETIRED_REPLACEMENTS[model] ?? model;
     }
 
-<<<<<<< Updated upstream
-    if (keyMode === 'byok') {
-=======
+
     if (keyMode === 'byok' || vendor === 'ollama') {
->>>>>>> Stashed changes
+
       if (vendor === 'openai') {
         const refKey = ws.ai_openai_vault_ref || `workspace:${workspaceId}`;
         const key = await this.vault.get({ scope: 'openai', refKey, workspaceId });
         if (!key) return null;
         return { vendor: 'openai', apiKey: key, byok: true, model };
       }
-<<<<<<< Updated upstream
-      const refKey = ws.ai_anthropic_vault_ref || `workspace:${workspaceId}:anthropic`;
-      const key = await this.vault.get({ scope: 'anthropic', refKey, workspaceId });
-      if (!key) return null;
-      return { vendor: 'anthropic', apiKey: key, byok: true, model };
-=======
+
       if (vendor === 'anthropic') {
         const refKey = ws.ai_anthropic_vault_ref || `workspace:${workspaceId}:anthropic`;
         const key = await this.vault.get({ scope: 'anthropic', refKey, workspaceId });
@@ -127,7 +113,7 @@ export class LlmGatewayService {
         const url = await this.vault.get({ scope: 'ollama', refKey, workspaceId });
         return { vendor: 'ollama', apiKey: url || process.env.OLLAMA_HOST || 'http://localhost:11434', byok: true, model };
       }
->>>>>>> Stashed changes
+
     }
 
     if (vendor === 'openai') {
@@ -136,11 +122,7 @@ export class LlmGatewayService {
       return { vendor: 'openai', apiKey: platformKey, byok: false, model };
     }
 
-<<<<<<< Updated upstream
-    const platformKey = process.env.ANTHROPIC_API_KEY;
-    if (!platformKey) return null;
-    return { vendor: 'anthropic', apiKey: platformKey, byok: false, model };
-=======
+
     if (vendor === 'anthropic') {
       const platformKey = process.env.ANTHROPIC_API_KEY;
       if (!platformKey) return null;
@@ -154,7 +136,7 @@ export class LlmGatewayService {
     }
 
     return null;
->>>>>>> Stashed changes
+
   }
 
   async chat(input: ChatCompletionInput): Promise<ChatCompletionResult | null> {
@@ -166,9 +148,7 @@ export class LlmGatewayService {
     if (cfg.vendor === 'openai') {
       return this.chatOpenAI(input, cfg);
     }
-<<<<<<< Updated upstream
-    return this.chatAnthropic(input, cfg);
-=======
+
     if (cfg.vendor === 'anthropic') {
       return this.chatAnthropic(input, cfg);
     }
@@ -179,7 +159,7 @@ export class LlmGatewayService {
       return this.chatOllama(input, cfg);
     }
     return null;
->>>>>>> Stashed changes
+
   }
 
   private async chatOpenAI(
@@ -293,8 +273,7 @@ export class LlmGatewayService {
     }
   }
 
-<<<<<<< Updated upstream
-=======
+
   private async chatGemini(
     input: ChatCompletionInput,
     cfg: ResolvedLlmCredentials,
@@ -392,7 +371,7 @@ export class LlmGatewayService {
     }
   }
 
->>>>>>> Stashed changes
+
   async storeOpenAiKey(workspaceId: string, apiKey: string): Promise<void> {
     const refKey = `workspace:${workspaceId}`;
     await this.vault.put({
@@ -464,8 +443,7 @@ export class LlmGatewayService {
       );
     }
   }
-<<<<<<< Updated upstream
-=======
+
 
   async storeGeminiKey(workspaceId: string, apiKey: string): Promise<void> {
     const refKey = `workspace:${workspaceId}:gemini`;
@@ -532,5 +510,5 @@ export class LlmGatewayService {
       [workspaceId],
     );
   }
->>>>>>> Stashed changes
+
 }

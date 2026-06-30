@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-=======
+
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
@@ -26,11 +24,9 @@ export class LinkedInService {
   private readonly logger = new Logger(LinkedInService.name);
 
   constructor(
-<<<<<<< Updated upstream
-    @InjectQueue(QUEUE_LINKEDIN_JOB) private readonly queue: Queue<LinkedInJobPayload>,
-=======
+
     @Optional() @InjectQueue(QUEUE_LINKEDIN_JOB) private readonly queue: Queue<LinkedInJobPayload>,
->>>>>>> Stashed changes
+
     private readonly accounts: LinkedInAccountService,
   ) {}
 

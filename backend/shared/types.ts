@@ -30,15 +30,18 @@ export interface SignUpResponseDto {
     firstName: string;
     lastName: string;
     onboardingCompleted: boolean;
+    twoFactorEnabled?: boolean;
   };
-  workspace: {
+  workspace?: {
     id: string;
     name: string;
   };
-  tokens: {
+  tokens?: {
     accessToken: string;
     refreshToken: string;
   };
+  mfaRequired?: boolean;
+  tempToken?: string;
 }
 
 export interface PaginationDto {

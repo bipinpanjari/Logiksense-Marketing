@@ -12,10 +12,9 @@ export interface DashboardKpis {
   activeCampaigns: number;
   activeSequences: number;
   scheduledSends: number;
-<<<<<<< Updated upstream
-=======
+
   leadsByStage: Record<string, number>;
->>>>>>> Stashed changes
+
 }
 
 export interface CampaignSummary {
@@ -39,11 +38,9 @@ export interface CampaignSummary {
 export class AnalyticsService {
   async kpis(workspaceId: string): Promise<DashboardKpis> {
     const db = getDatabase();
-<<<<<<< Updated upstream
-    const [leadsRes, engagementRes, campaignsRes, sequencesRes, scheduledRes] = await Promise.all([
-=======
+
     const [leadsRes, engagementRes, campaignsRes, sequencesRes, stagesRes, scheduledRes] = await Promise.all([
->>>>>>> Stashed changes
+
       db.query(
         `SELECT
            COUNT(*)::int AS total,
@@ -53,19 +50,13 @@ export class AnalyticsService {
       ),
       db.query(
         `SELECT
-<<<<<<< Updated upstream
-           COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked','replied'))::int AS total_sent,
-           COUNT(*) FILTER (WHERE opened_at IS NOT NULL)::int AS opened,
-           COUNT(*) FILTER (WHERE clicked_at IS NOT NULL)::int AS clicked,
-           COUNT(*) FILTER (WHERE status = 'bounced')::int AS bounced,
-           COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked','replied') AND sent_at >= NOW() - INTERVAL '7 days')::int AS sent_7d
-=======
+
            COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked','replied') AND is_warmup = false)::int AS total_sent,
            COUNT(*) FILTER (WHERE opened_at IS NOT NULL AND is_warmup = false)::int AS opened,
            COUNT(*) FILTER (WHERE clicked_at IS NOT NULL AND is_warmup = false)::int AS clicked,
            COUNT(*) FILTER (WHERE status = 'bounced' AND is_warmup = false)::int AS bounced,
            COUNT(*) FILTER (WHERE status IN ('sent','opened','clicked','replied') AND sent_at >= NOW() - INTERVAL '7 days' AND is_warmup = false)::int AS sent_7d
->>>>>>> Stashed changes
+
          FROM email_logs WHERE workspace_id = $1`,
         [workspaceId],
       ),
@@ -82,8 +73,7 @@ export class AnalyticsService {
         [workspaceId],
       ),
       db.query(
-<<<<<<< Updated upstream
-=======
+
         `SELECT pipeline_stage, COUNT(*)::int as count
          FROM leads
          WHERE workspace_id = $1
@@ -91,7 +81,7 @@ export class AnalyticsService {
         [workspaceId],
       ),
       db.query(
->>>>>>> Stashed changes
+
         `SELECT COUNT(*)::int AS scheduled
          FROM sequence_lead_enrollment sle
          INNER JOIN email_sequences es ON es.id = sle.sequence_id
@@ -107,14 +97,13 @@ export class AnalyticsService {
     const clicked = engagementRes.rows[0]?.clicked ?? 0;
     const bounced = engagementRes.rows[0]?.bounced ?? 0;
     const sent7 = engagementRes.rows[0]?.sent_7d ?? 0;
-<<<<<<< Updated upstream
-=======
+
     
     const leadsByStage: Record<string, number> = {};
     stagesRes.rows.forEach(r => {
       leadsByStage[r.pipeline_stage || 'unknown'] = r.count;
     });
->>>>>>> Stashed changes
+
 
     const repliedRes = await db.query(
       `SELECT COUNT(*)::int AS replied FROM inbound_replies WHERE workspace_id = $1`,
@@ -133,10 +122,9 @@ export class AnalyticsService {
       activeCampaigns: campaignsRes.rows[0]?.active ?? 0,
       activeSequences: sequencesRes.rows[0]?.active ?? 0,
       scheduledSends: scheduledRes.rows[0]?.scheduled ?? 0,
-<<<<<<< Updated upstream
-=======
+
       leadsByStage,
->>>>>>> Stashed changes
+
     };
   }
 

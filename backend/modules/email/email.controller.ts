@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { Body, Controller, Get, Post, Put, Request, UnauthorizedException } from '@nestjs/common';
-=======
+
 import { Body, Controller, Delete, Get, Param, Post, Put, Request, UnauthorizedException } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { EmailService, UpsertEmailConfigInput } from './email.service';
 import { RequestWithUser } from '../../shared/auth.middleware';
 
@@ -10,8 +8,7 @@ import { RequestWithUser } from '../../shared/auth.middleware';
 export class EmailController {
   constructor(private readonly emailService: EmailService) {}
 
-<<<<<<< Updated upstream
-=======
+
   @Get('configs')
   async getConfigs(@Request() req: RequestWithUser) {
     const workspaceId = req.user?.workspaceId;
@@ -21,47 +18,12 @@ export class EmailController {
   }
 
   // Backwards compatibility for old UI
->>>>>>> Stashed changes
+
   @Get('config')
   async getConfig(@Request() req: RequestWithUser) {
     const workspaceId = req.user?.workspaceId;
     const customerId = req.user?.userId;
-<<<<<<< Updated upstream
-    if (!workspaceId || !customerId) {
-      return null;
-    }
-    return this.emailService.getActiveConfig(workspaceId, customerId);
-  }
 
-  @Put('config')
-  async upsertConfig(@Request() req: RequestWithUser, @Body() body: UpsertEmailConfigInput) {
-    const workspaceId = req.user?.workspaceId;
-    const customerId = req.user?.userId;
-    if (!workspaceId || !customerId) {
-      throw new UnauthorizedException('Not authenticated');
-    }
-    return this.emailService.upsertConfig(workspaceId as string, customerId as string, body);
-  }
-
-  @Post('test-connection')
-  async testConnection(@Request() req: RequestWithUser) {
-    const workspaceId = req.user?.workspaceId;
-    const customerId = req.user?.userId;
-    if (!workspaceId || !customerId) {
-      throw new UnauthorizedException('Not authenticated');
-    }
-    return this.emailService.testConnection(workspaceId as string, customerId as string);
-  }
-
-  @Post('send-test')
-  async sendTest(@Request() req: RequestWithUser, @Body() body: { to: string; subject?: string; html?: string }) {
-    const workspaceId = req.user?.workspaceId;
-    const customerId = req.user?.userId;
-    if (!workspaceId || !customerId) {
-      throw new UnauthorizedException('Not authenticated');
-    }
-    return this.emailService.sendTestEmail(workspaceId as string, customerId as string, body?.to, body?.subject, body?.html);
-=======
     if (!workspaceId || !customerId) return null;
     const configs = await this.emailService.getActiveConfigs(workspaceId, customerId);
     return configs.length > 0 ? configs[0] : null;
@@ -106,7 +68,7 @@ export class EmailController {
     const customerId = req.user?.userId;
     if (!workspaceId || !customerId) throw new UnauthorizedException('Not authenticated');
     return this.emailService.sendTestEmail(workspaceId, customerId, body?.to, body?.subject, body?.html, body?.configId);
->>>>>>> Stashed changes
+
   }
 
   @Post('validate-dkim')
@@ -123,10 +85,7 @@ export class EmailController {
   async validateDmarc(@Body() body: { domain: string }) {
     return this.emailService.validateDmarc(body?.domain);
   }
-<<<<<<< Updated upstream
-}
 
-=======
 
   @Get('oauth/microsoft-url/:id')
   async getMicrosoftAuthUrl(@Request() req: RequestWithUser, @Param('id') id: string) {
@@ -142,4 +101,4 @@ export class EmailController {
     return this.emailService.handleMicrosoftCallback(customerId, body.configId, body.code);
   }
 }
->>>>>>> Stashed changes
+

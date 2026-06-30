@@ -1,0 +1,1 @@
+self.__SSG_MANIFEST=new Set(["\u002Femail\u002Fcampaigns\u002F[id]","\u002Femail\u002Fsequences\u002F[id]","\u002Flinkedin\u002F[id]","\u002Fscraper\u002Fjobs\u002F[id]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()

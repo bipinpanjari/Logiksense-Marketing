@@ -1,32 +1,18 @@
-<<<<<<< Updated upstream
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { SignOptions } from 'jsonwebtoken';
-import * as bcrypt from 'bcryptjs';
-=======
+
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SignOptions } from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
-import { generateSecret, generateURI, verifySync } from 'otplib';
+import { authenticator } from 'otplib';
 import { toDataURL } from 'qrcode';
->>>>>>> Stashed changes
+
 import { Prisma } from '@prisma/client';
 import { CreateUserDto, LoginUserDto, SignUpResponseDto } from '../../shared/types';
 import { PrismaService } from '../../shared/prisma.service';
 import { EmailValidationService } from './email-validation.service';
-<<<<<<< Updated upstream
 
-@Injectable()
-export class AuthService {
-  constructor(
-    private jwtService: JwtService,
-    private prisma: PrismaService,
-    private emailValidation: EmailValidationService
-  ) {}
-=======
 import { VaultService } from '../../shared/vault.service';
 
 @Injectable()
@@ -148,7 +134,7 @@ export class AuthService {
       },
     });
   }
->>>>>>> Stashed changes
+
 
   private resolveExpiry(value: string | undefined, fallback: SignOptions['expiresIn']): SignOptions['expiresIn'] {
     if (!value) return fallback;
@@ -175,11 +161,9 @@ export class AuthService {
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
 
-<<<<<<< Updated upstream
-      const result = await this.prisma.$transaction(async (tx) => {
-=======
+
       const result = await this.prisma.$transaction(async (tx: any) => {
->>>>>>> Stashed changes
+
         const user = await tx.customer.create({
           data: {
             email,
@@ -208,8 +192,7 @@ export class AuthService {
           select: { id: true, name: true },
         });
 
-<<<<<<< Updated upstream
-=======
+
         // Add owner to members table
         await tx.workspaceMember.create({
           data: {
@@ -219,7 +202,7 @@ export class AuthService {
           },
         });
 
->>>>>>> Stashed changes
+
         return { user, workspace };
       });
 
@@ -232,10 +215,9 @@ export class AuthService {
           firstName: result.user.firstName || '',
           lastName: result.user.lastName || '',
           onboardingCompleted: result.user.onboardingCompleted,
-<<<<<<< Updated upstream
-=======
+
           twoFactorEnabled: false,
->>>>>>> Stashed changes
+
         },
         workspace: {
           id: result.workspace.id,
@@ -255,10 +237,9 @@ export class AuthService {
 
     try {
       // Find user
-<<<<<<< Updated upstream
-=======
+
       console.log(`DEBUG: Login attempt for email: "${email}"`);
->>>>>>> Stashed changes
+
       const user = await this.prisma.customer.findFirst({
         where: { email: { equals: email, mode: 'insensitive' } },
         select: {
@@ -269,34 +250,30 @@ export class AuthService {
           lastName: true,
           onboardingCompleted: true,
           role: true,
-<<<<<<< Updated upstream
-=======
+
           twoFactorEnabled: true,
           twoFactorSecret: true,
->>>>>>> Stashed changes
+
         },
       });
 
       if (!user) {
-<<<<<<< Updated upstream
-=======
+
         console.log(`DEBUG: User not found for email: "${email}"`);
->>>>>>> Stashed changes
+
         throw new UnauthorizedException('Invalid credentials');
       }
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-<<<<<<< Updated upstream
-=======
+
       console.log(`DEBUG: Password valid for "${email}": ${isPasswordValid}`);
->>>>>>> Stashed changes
+
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-<<<<<<< Updated upstream
-=======
+
       // Handle MFA
       if (user.twoFactorEnabled) {
         const mfaPayload = { userId: user.id, email: user.email, sub: 'mfa' };
@@ -320,7 +297,7 @@ export class AuthService {
         };
       }
 
->>>>>>> Stashed changes
+
       // Get default workspace
       const workspace = await this.prisma.workspace.findFirst({
         where: { customerId: user.id },
@@ -341,10 +318,9 @@ export class AuthService {
           firstName: user.firstName || '',
           lastName: user.lastName || '',
           onboardingCompleted: user.onboardingCompleted,
-<<<<<<< Updated upstream
-=======
+
           twoFactorEnabled: false,
->>>>>>> Stashed changes
+
         },
         workspace: {
           id: workspace.id,
@@ -425,9 +401,7 @@ export class AuthService {
   async validateUser(userId: string): Promise<any> {
     const user = await this.prisma.customer.findUnique({
       where: { id: userId },
-<<<<<<< Updated upstream
-      select: { id: true, email: true, firstName: true, lastName: true, onboardingCompleted: true },
-=======
+
       select: { 
         id: true, 
         email: true, 
@@ -436,7 +410,7 @@ export class AuthService {
         onboardingCompleted: true,
         twoFactorEnabled: true,
       },
->>>>>>> Stashed changes
+
     });
     return user || null;
   }
@@ -457,10 +431,9 @@ export class AuthService {
         firstName: true,
         lastName: true,
         onboardingCompleted: true,
-<<<<<<< Updated upstream
-=======
+
         twoFactorEnabled: true,
->>>>>>> Stashed changes
+
         createdAt: true,
       },
     });
@@ -491,17 +464,15 @@ export class AuthService {
         firstName: true,
         lastName: true,
         onboardingCompleted: true,
-<<<<<<< Updated upstream
-=======
+
         twoFactorEnabled: true,
->>>>>>> Stashed changes
+
         updatedAt: true,
       },
     });
   }
 
-<<<<<<< Updated upstream
-=======
+
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const user = await this.prisma.customer.findUnique({
       where: { id: userId },
@@ -526,7 +497,7 @@ export class AuthService {
     return { success: true, message: 'Password changed successfully' };
   }
 
->>>>>>> Stashed changes
+
   async getWorkspaceSettings(userId: string, workspaceId: string) {
     const workspace = await this.prisma.workspace.findFirst({
       where: { id: workspaceId, customerId: userId },
@@ -541,16 +512,14 @@ export class AuthService {
   async updateWorkspaceSettings(
     userId: string,
     workspaceId: string,
-<<<<<<< Updated upstream
-    payload: { workspaceName?: string; timezone?: string; notifications?: Record<string, boolean> }
-=======
+
     payload: { 
       workspaceName?: string; 
       timezone?: string; 
       notifications?: Record<string, boolean>;
       scraper?: Record<string, any>;
     }
->>>>>>> Stashed changes
+
   ) {
     const workspace = await this.prisma.workspace.findFirst({
       where: { id: workspaceId, customerId: userId },
@@ -583,17 +552,14 @@ export class AuthService {
         ...(typeof currentSettings.notifications === 'object' && currentSettings.notifications ? (currentSettings.notifications as Record<string, unknown>) : {}),
         ...(payload.notifications || {}),
       },
-<<<<<<< Updated upstream
-    };
-    const nextSettings = JSON.parse(JSON.stringify(nextSettingsObject)) as Prisma.InputJsonValue;
-=======
+
       scraper: {
         ...(typeof currentSettings.scraper === 'object' && currentSettings.scraper ? (currentSettings.scraper as Record<string, unknown>) : {}),
         ...(payload.scraper || {}),
       },
     };
     const nextSettings = JSON.parse(JSON.stringify(nextSettingsObject)) as any;
->>>>>>> Stashed changes
+
 
     return this.prisma.workspace.update({
       where: { id: workspaceId },
@@ -617,10 +583,9 @@ export class AuthService {
       domain: string;
       dkimSelector?: string;
       skipDnsValidation?: boolean;
-<<<<<<< Updated upstream
-=======
+
       termsAccepted?: boolean;
->>>>>>> Stashed changes
+
     }
   ): Promise<{
     success: boolean;
@@ -655,11 +620,9 @@ export class AuthService {
       throw new BadRequestException('Email domain validation failed. Please provide a valid work domain.');
     }
 
-<<<<<<< Updated upstream
-    await this.prisma.$transaction(async (tx) => {
-=======
+
     await this.prisma.$transaction(async (tx: any) => {
->>>>>>> Stashed changes
+
       const [firstName, ...rest] = staffName.split(' ').filter(Boolean);
       const lastName = rest.join(' ');
 
@@ -669,11 +632,10 @@ export class AuthService {
           firstName: firstName || null,
           lastName: lastName || null,
           onboardingCompleted: true,
-<<<<<<< Updated upstream
-=======
+
           termsAccepted: payload.termsAccepted ?? false,
           termsAcceptedAt: payload.termsAccepted ? new Date() : null,
->>>>>>> Stashed changes
+
         },
       });
 
@@ -768,8 +730,7 @@ export class AuthService {
       },
     };
   }
-<<<<<<< Updated upstream
-=======
+
 
   // ==================== 2FA / MFA ====================
 
@@ -780,12 +741,8 @@ export class AuthService {
     });
     if (!user) throw new BadRequestException('User not found');
 
-    const secret = generateSecret();
-    const otpauthUrl = generateURI({
-      issuer: 'LogikMarket',
-      label: user.email,
-      secret,
-    });
+    const secret = authenticator.generateSecret();
+    const otpauthUrl = authenticator.keyuri(user.email, 'LogikMarket', secret);
     const qrCode = await toDataURL(otpauthUrl);
 
     // Store encrypted secret temporarily but don't enable yet
@@ -810,10 +767,7 @@ export class AuthService {
 
     // Check TOTP code
     const secret = this.vault.decrypt(user.twoFactorSecret);
-    const { valid: isValid } = verifySync({
-      token: code.trim(),
-      secret,
-    });
+    const isValid = authenticator.check(code.trim(), secret);
 
     if (isValid) return true;
 
@@ -919,5 +873,5 @@ export class AuthService {
       throw new UnauthorizedException('MFA verification failed');
     }
   }
->>>>>>> Stashed changes
+
 }

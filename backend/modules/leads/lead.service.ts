@@ -8,20 +8,11 @@ export interface CreateLeadDto {
   email: string;
   phone?: string;
   company?: string;
-<<<<<<< Updated upstream
-  jobTitle?: string;
-  companySize?: number;
-  city?: string;
-  state?: string;
-  country?: string;
-  source?: string;
-  tags?: string[];
-  customFields?: Record<string, any>;
-=======
+
   tags?: string[];
   customFields?: Record<string, any>;
   leadNumber?: string; // Auto-generated lead identifier
->>>>>>> Stashed changes
+
 }
 
 export interface UpdateLeadDto {
@@ -30,15 +21,8 @@ export interface UpdateLeadDto {
   email?: string;
   phone?: string;
   company?: string;
-<<<<<<< Updated upstream
-  jobTitle?: string;
-  companySize?: number | null;
-  city?: string;
-  state?: string;
-  country?: string;
-  source?: string;
-=======
->>>>>>> Stashed changes
+
+
   tags?: string[];
   customFields?: Record<string, any>;
   isSuppressed?: boolean;
@@ -79,13 +63,7 @@ export class LeadService {
     }
 
     try {
-<<<<<<< Updated upstream
-      const result = await db.query(
-        `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company,
-           job_title, company_size, city, state, country, source,
-           tags, custom_fields, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-=======
+
       // Include leadNumber in customFields if provided
       const customFields = {
         ...(createLeadDto.customFields || {}),
@@ -95,7 +73,7 @@ export class LeadService {
       const result = await db.query(
         `INSERT INTO leads (id, workspace_id, first_name, last_name, email, phone, company, tags, custom_fields, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
->>>>>>> Stashed changes
+
          RETURNING *`,
         [
           leadId,
@@ -105,19 +83,10 @@ export class LeadService {
           email,
           createLeadDto.phone || null,
           createLeadDto.company || null,
-<<<<<<< Updated upstream
-          createLeadDto.jobTitle?.trim() || null,
-          createLeadDto.companySize ?? null,
-          createLeadDto.city?.trim() || null,
-          createLeadDto.state?.trim() || null,
-          createLeadDto.country?.trim() || null,
-          createLeadDto.source?.trim() || null,
-          createLeadDto.tags || [],
-          JSON.stringify(createLeadDto.customFields || {}),
-=======
+
           createLeadDto.tags || [],
           JSON.stringify(customFields),
->>>>>>> Stashed changes
+
           customerId,
         ]
       );
@@ -287,45 +256,8 @@ export class LeadService {
         paramIndex++;
       }
 
-<<<<<<< Updated upstream
-      if (updateLeadDto.jobTitle !== undefined) {
-        updateFields.push(`job_title = $${paramIndex}`);
-        updateValues.push(updateLeadDto.jobTitle);
-        paramIndex++;
-      }
 
-      if (updateLeadDto.companySize !== undefined) {
-        updateFields.push(`company_size = $${paramIndex}`);
-        updateValues.push(updateLeadDto.companySize);
-        paramIndex++;
-      }
 
-      if (updateLeadDto.city !== undefined) {
-        updateFields.push(`city = $${paramIndex}`);
-        updateValues.push(updateLeadDto.city);
-        paramIndex++;
-      }
-
-      if (updateLeadDto.state !== undefined) {
-        updateFields.push(`state = $${paramIndex}`);
-        updateValues.push(updateLeadDto.state);
-        paramIndex++;
-      }
-
-      if (updateLeadDto.country !== undefined) {
-        updateFields.push(`country = $${paramIndex}`);
-        updateValues.push(updateLeadDto.country);
-        paramIndex++;
-      }
-
-      if (updateLeadDto.source !== undefined) {
-        updateFields.push(`source = $${paramIndex}`);
-        updateValues.push(updateLeadDto.source);
-        paramIndex++;
-      }
-
-=======
->>>>>>> Stashed changes
       if (updateLeadDto.tags) {
         updateFields.push(`tags = $${paramIndex}`);
         updateValues.push(updateLeadDto.tags);
@@ -526,14 +458,8 @@ export class LeadService {
       email: lead.email,
       phone: lead.phone,
       company: lead.company,
-<<<<<<< Updated upstream
-      jobTitle: lead.job_title,
-      companySize: lead.company_size,
-      city: lead.city,
-      state: lead.state,
-      country: lead.country,
-=======
->>>>>>> Stashed changes
+
+
       tags: lead.tags || [],
       customFields: lead.custom_fields || {},
       source: lead.source,

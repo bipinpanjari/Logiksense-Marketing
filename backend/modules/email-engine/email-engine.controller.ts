@@ -10,10 +10,9 @@ import {
 import { CampaignLauncherService } from './campaign-launcher.service';
 import { SequenceEngineService } from './sequence-engine.service';
 import { EmailDispatcherService } from './email-dispatcher.service';
-<<<<<<< Updated upstream
-=======
+
 import { WarmupEngineService } from './warmup-engine.service';
->>>>>>> Stashed changes
+
 import { getDatabase } from '../../shared/database';
 import { AuthedWithWorkspace, getWorkspaceContext, getWorkspaceId } from '../../shared/auth-context.util';
 
@@ -23,10 +22,7 @@ export class EmailEngineController {
     private readonly launcher: CampaignLauncherService,
     private readonly sequence: SequenceEngineService,
     private readonly dispatcher: EmailDispatcherService,
-<<<<<<< Updated upstream
-  ) {}
 
-=======
     private readonly warmup: WarmupEngineService,
   ) {}
 
@@ -37,7 +33,7 @@ export class EmailEngineController {
     return { ok: true, message: 'Warmup cycle triggered' };
   }
 
->>>>>>> Stashed changes
+
   @Post('campaigns/:id/launch')
   async launchCampaign(@Param('id') campaignId: string, @Req() req: AuthedWithWorkspace) {
     const { workspaceId, customerId } = getWorkspaceContext(req);

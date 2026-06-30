@@ -11,11 +11,7 @@ import { ScraperController } from './scraper.controller';
 import { ScraperJobProcessor } from './processors/scraper-job.processor';
 import { ScraperSchedulerService } from './scraper-scheduler.service';
 import { ScraperRecoveryService } from './scraper-recovery.service';
-<<<<<<< Updated upstream
 
-@Module({
-  imports: [BullModule.registerQueue({ name: QUEUE_SCRAPER_JOB }), AiModule],
-=======
 import { LinkedInModule } from '../linkedin/linkedin.module';
 import { EmailEngineModule } from '../email-engine/email-engine.module';
 
@@ -23,7 +19,7 @@ const redisEnabled = process.env.REDIS_ENABLED !== 'false';
 
 @Module({
   imports: redisEnabled ? [BullModule.registerQueue({ name: QUEUE_SCRAPER_JOB }), AiModule, LinkedInModule, EmailEngineModule] : [AiModule, LinkedInModule, EmailEngineModule],
->>>>>>> Stashed changes
+
   controllers: [ScraperController],
   providers: [
     EmailExtractorService,
@@ -31,9 +27,9 @@ const redisEnabled = process.env.REDIS_ENABLED !== 'false';
     WebsiteScraperService,
     ScraperOrchestratorService,
     ScraperService,
-    ScraperJobProcessor,
     ScraperSchedulerService,
     ScraperRecoveryService,
+    ...(redisEnabled ? [ScraperJobProcessor] : []),
   ],
   exports: [ScraperOrchestratorService, ScraperService],
 })

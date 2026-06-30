@@ -22,12 +22,21 @@ export default function LoginPage() {
     setSubmitting(true);
     setError("");
     try {
+      console.log(`[Login] Attempting sign-in at: ${API_URL}/auth/login`);
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!response.ok) throw new Error("Invalid credentials");
+      if (!response.ok) {
+        let errorMsg = "Invalid credentials";
+        try {
+          const errData = await response.json();
+          errorMsg = errData.message || errData.error || errorMsg;
+        } catch (_) {}
+        console.error(`[Login Error] Server returned status ${response.status}:`, errorMsg);
+        throw new Error(errorMsg);
+      }
       const data = await response.json();
       setSession({
         accessToken: data.tokens.accessToken,
@@ -37,6 +46,7 @@ export default function LoginPage() {
       });
       router.replace(data?.user?.onboardingCompleted ? "/dashboard" : "/onboarding");
     } catch (err: any) {
+      console.error("[Login Error] Login request failed:", err);
       setError(err?.message || "Login failed");
     } finally {
       setSubmitting(false);

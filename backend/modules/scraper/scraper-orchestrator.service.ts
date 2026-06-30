@@ -6,12 +6,11 @@ import { closeBrowser, setupBrowser, type BrowserSetup } from './utils/browser-c
 import { GoogleMapsScraperService, GoogleMapsResult } from './gmaps-scraper.service';
 import { WebsiteScraperService, type WebsiteScrapeResult } from './website-scraper.service';
 import { WebsiteDigestRepBriefService } from '../ai/website-digest-rep-brief.service';
-<<<<<<< Updated upstream
-=======
+
 import { LinkedinProfileScraperService } from '../linkedin/linkedin-profile-scraper.service';
 import { ApolloService } from '../ai/apollo.service';
 import { SequenceEngineService } from '../email-engine/sequence-engine.service';
->>>>>>> Stashed changes
+
 
 export interface OrchestratorInput {
   jobId: string;
@@ -39,12 +38,11 @@ export class ScraperOrchestratorService {
     private readonly gmaps: GoogleMapsScraperService,
     private readonly website: WebsiteScraperService,
     private readonly digestRepBrief: WebsiteDigestRepBriefService,
-<<<<<<< Updated upstream
-=======
+
     private readonly linkedinEmployeeScraper: LinkedinProfileScraperService,
     private readonly apollo: ApolloService,
     private readonly sequenceEngine: SequenceEngineService,
->>>>>>> Stashed changes
+
   ) {}
 
   async run(input: OrchestratorInput): Promise<OrchestratorResult> {
@@ -53,11 +51,9 @@ export class ScraperOrchestratorService {
 
     const jobRes = await db.query(
       `SELECT sj.id, sj.workspace_id, sj.customer_id, sj.provider, sj.query, sj.business_type,
-<<<<<<< Updated upstream
-              sj.city, sj.country, sj.target_limit, w.scraping_enabled
-=======
+
               sj.city, sj.country, sj.target_limit, sj.scrape_options, w.scraping_enabled, w.settings as workspace_settings
->>>>>>> Stashed changes
+
        FROM scraper_jobs sj
        JOIN workspaces w ON w.id = sj.workspace_id
        WHERE sj.id = $1::uuid`,
@@ -219,12 +215,7 @@ export class ScraperOrchestratorService {
       }
     } else {
       await this.enrichSearchItemAi(db, job, itemId);
-<<<<<<< Updated upstream
-    }
-    return { processed: true, withEmail };
-  }
 
-=======
       if (!place.hasWebsite) {
         await this.promoteNoWebsiteBusiness(db, job, place);
       }
@@ -358,7 +349,7 @@ export class ScraperOrchestratorService {
     // ...
   }
 
->>>>>>> Stashed changes
+
   private async setProgress(
     db: ReturnType<typeof getDatabase>,
     jobId: string,
@@ -515,8 +506,7 @@ export class ScraperOrchestratorService {
     if (id) await this.enrichSearchItemAi(db, job, id);
   }
 
-<<<<<<< Updated upstream
-=======
+
   private async promoteNoWebsiteBusiness(
     db: ReturnType<typeof getDatabase>,
     job: any,
@@ -564,7 +554,7 @@ export class ScraperOrchestratorService {
     }
   }
 
->>>>>>> Stashed changes
+
   private async promoteToLeads(
     db: ReturnType<typeof getDatabase>,
     job: any,

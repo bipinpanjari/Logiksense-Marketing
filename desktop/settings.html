@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connection Settings</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --input-bg: rgba(31, 41, 55, 0.5);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --input-focus: #818cf8;
+      --secondary: #374151;
+      --secondary-hover: #4b5563;
+      --danger: #991b1b;
+      --danger-hover: #7f1d1d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+
+    header {
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      background: linear-gradient(to right, #a5b4fc, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .mode-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      margin-top: 6px;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+      align-items: center;
+    }
+
+    button {
+      padding: 10px 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--secondary-hover);
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: white;
+      margin-right: auto; /* Push other buttons to the right */
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger-hover);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Connection Settings</h1>
+      <p class="subtitle">Configure desktop client endpoints</p>
+      <div id="current-mode" class="mode-badge">Mode: Loading...</div>
+    </header>
+
+    <form id="settings-form">
+      <div class="form-group">
+        <label for="api-url">Backend API URL</label>
+        <input type="url" id="api-url" placeholder="http://localhost:3000/api" required>
+        <p class="hint">The API URL this client communicates with.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="frontend-url">Remote Frontend URL (Optional)</label>
+        <input type="url" id="frontend-url" placeholder="https://app.logiksense.com">
+        <p class="hint">If provided, the desktop client will load this remote URL directly.</p>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-danger" id="btn-reset">Reset Setup</button>
+        <button type="button" class="btn-secondary" id="btn-cancel">Cancel</button>
+        <button type="submit" class="btn-primary">Save & Reload</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const apiInput = document.getElementById('api-url');
+    const frontendInput = document.getElementById('frontend-url');
+    const cancelBtn = document.getElementById('btn-cancel');
+    const resetBtn = document.getElementById('btn-reset');
+    const form = document.getElementById('settings-form');
+    const modeBadge = document.getElementById('current-mode');
+
+    // Load initial values from main process via preload bridge
+    if (window.desktopEnv) {
+      apiInput.value = window.desktopEnv.API_URL || 'http://localhost:3000/api';
+      frontendInput.value = window.desktopEnv.FRONTEND_URL || '';
+      
+      const mode = window.desktopEnv.CONNECTION_MODE || 'unconfigured';
+      let modeText = 'Standalone Server';
+      if (mode === 'client') modeText = 'Join Office Network';
+      if (mode === 'cloud') modeText = 'Connect to Cloud';
+      modeBadge.textContent = `Mode: ${modeText}`;
+    }
+
+    cancelBtn.addEventListener('click', () => {
+      window.close(); // Close the settings window
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to reset your connection? This will close the app, clean settings, and reopen the setup wizard.')) {
+        if (window.desktopEnv && window.desktopEnv.resetConnectionConfig) {
+          window.desktopEnv.resetConnectionConfig();
+        }
+      }
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const apiUrl = apiInput.value.trim();
+      const frontendUrl = frontendInput.value.trim();
+
+      if (window.desktopEnv) {
+        window.desktopEnv.setApiUrl(apiUrl);
+        window.desktopEnv.setFrontendUrl(frontendUrl);
+        window.desktopEnv.reload(); // Reload the main window to apply changes
+      }
+      window.close(); // Close the settings window
+    });
+  </script>
+</body>
+</html>

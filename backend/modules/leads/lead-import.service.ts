@@ -25,16 +25,8 @@ export interface ImportPreviewResult {
     email?: string;
     phone?: string;
     company?: string;
-<<<<<<< Updated upstream
-    jobTitle?: string;
-    companySize?: number;
-    city?: string;
-    state?: string;
-    country?: string;
-    source?: string;
-    tags?: string;
-=======
->>>>>>> Stashed changes
+
+
     valid: boolean;
     issues: string[];
   }>;
@@ -69,15 +61,9 @@ export class LeadImportService {
     dedupeStrategy: 'skip' | 'update' = 'skip'
   ): Promise<ImportResult> {
     const rows = this.leadExtractionService.parseRows(file);
-<<<<<<< Updated upstream
-    const inferred = this.leadExtractionService.inferMapping(
-      this.leadExtractionService.getDetectedColumns(rows)
-    );
-    const mergedMapping = this.leadExtractionService.mergeMappings(inferred, mapping);
-    return this.processRows(rows, workspaceId, customerId, mergedMapping, dedupeStrategy);
-=======
+
     return this.processRows(rows, workspaceId, customerId, mapping, dedupeStrategy);
->>>>>>> Stashed changes
+
   }
 
   async importFromCSV(
@@ -144,11 +130,10 @@ export class LeadImportService {
         const firstName = mapped.firstName;
         const lastName = mapped.lastName;
         const email = mapped.email || '';
-<<<<<<< Updated upstream
-=======
+
         const phone = mapped.phone;
         const company = mapped.company;
->>>>>>> Stashed changes
+
 
         // Validation
         if (!email || !this.leadExtractionService.isValidEmail(email)) {
@@ -173,47 +158,22 @@ export class LeadImportService {
 
         // Check for duplicates in this workspace
         const existing = await db.query(
-<<<<<<< Updated upstream
-          'SELECT id, custom_fields FROM leads WHERE workspace_id = $1 AND lower(email) = lower($2)',
-=======
+
           'SELECT id FROM leads WHERE workspace_id = $1 AND lower(email) = lower($2)',
->>>>>>> Stashed changes
+
           [workspaceId, email]
         );
 
         if (existing.rows.length > 0) {
           if (dedupeStrategy === 'update') {
-<<<<<<< Updated upstream
-            const priorCustom =
-              existing.rows[0].custom_fields &&
-              typeof existing.rows[0].custom_fields === 'object' &&
-              !Array.isArray(existing.rows[0].custom_fields)
-                ? (existing.rows[0].custom_fields as Record<string, unknown>)
-                : {};
-            const incomingCustom = this.leadExtractionService.extractCustomFields(row, mapping);
-            const mergedCustom = { ...priorCustom, ...incomingCustom };
 
-            const updated = await this.leadService.updateLead(workspaceId, existing.rows[0].id, {
-              firstName: firstName || undefined,
-              lastName: lastName || undefined,
-              phone: mapped.phone || undefined,
-              company: mapped.company || undefined,
-              jobTitle: mapped.jobTitle || undefined,
-              companySize: mapped.companySize ?? undefined,
-              city: mapped.city || undefined,
-              state: mapped.state || undefined,
-              country: mapped.country || undefined,
-              source: mapped.source || undefined,
-              customFields: mergedCustom,
-              ...(mapped.tags?.length ? { tags: mapped.tags } : {}),
-=======
             const updated = await this.leadService.updateLead(workspaceId, existing.rows[0].id, {
               firstName: firstName || undefined,
               lastName: lastName || undefined,
               phone: phone || undefined,
               company: company || undefined,
               customFields: this.leadExtractionService.extractCustomFields(row, mapping),
->>>>>>> Stashed changes
+
             });
             result.updateCount = (result.updateCount || 0) + 1;
             result.leads.push(updated);
@@ -234,21 +194,11 @@ export class LeadImportService {
           firstName: firstName || '',
           lastName: lastName || '',
           email,
-<<<<<<< Updated upstream
-          phone: mapped.phone || undefined,
-          company: mapped.company || undefined,
-          jobTitle: mapped.jobTitle || undefined,
-          companySize: mapped.companySize,
-          city: mapped.city || undefined,
-          state: mapped.state || undefined,
-          country: mapped.country || undefined,
-          source: mapped.source || undefined,
-          tags: mapped.tags ?? [],
-=======
+
           phone: phone || undefined,
           company: company || undefined,
           tags: [],
->>>>>>> Stashed changes
+
           customFields: this.leadExtractionService.extractCustomFields(row, mapping),
         };
 

@@ -3,10 +3,9 @@ import axios from 'axios';
 import { VaultService } from '../../shared/vault.service';
 import { AiUsageService } from './ai-usage.service';
 import { getDatabase } from '../../shared/database';
-<<<<<<< Updated upstream
-=======
+
 import { ApolloService } from './apollo.service';
->>>>>>> Stashed changes
+
 
 export interface ZeroBounceResult {
   status: string;
@@ -50,10 +49,9 @@ export class EnrichmentService {
   constructor(
     private readonly vault: VaultService,
     private readonly usage: AiUsageService,
-<<<<<<< Updated upstream
-=======
+
     private readonly apollo: ApolloService,
->>>>>>> Stashed changes
+
   ) {}
 
   async isEnabled(workspaceId: string): Promise<boolean> {
@@ -129,61 +127,7 @@ export class EnrichmentService {
     const cached = await this.readCache(workspaceId, 'apollo', cleanDomain);
     if (cached) return cached as ApolloPerson;
 
-<<<<<<< Updated upstream
-    const apiKey = await this.vault.get({
-      scope: 'apollo',
-      refKey: `workspace:${workspaceId}`,
-      workspaceId,
-    });
-    if (!apiKey) return null;
 
-    try {
-      const res = await axios.post(
-        'https://api.apollo.io/v1/mixed_people/search',
-        {
-          api_key: apiKey,
-          q_organization_domains: cleanDomain,
-          person_titles: options.titles ?? ['CEO', 'Founder', 'Owner', 'Managing Director', 'Director'],
-          page: 1,
-        },
-        {
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-          timeout: 20000,
-        },
-      );
-      const people: any[] = res.data?.people || [];
-      const match = people.find((p) => p?.email) ?? people[0];
-      if (!match) return null;
-      const person: ApolloPerson = {
-        email: match?.email ?? null,
-        firstName: match?.first_name ?? null,
-        lastName: match?.last_name ?? null,
-        title: match?.title ?? null,
-        linkedinUrl: match?.linkedin_url ?? null,
-        raw: match,
-      };
-      await this.writeCache(workspaceId, 'apollo', cleanDomain, person, 30);
-      await this.usage.log({
-        workspaceId,
-        provider: 'apollo',
-        model: 'mixed_people_search',
-        operation: 'company_enrichment',
-        byok: true,
-        status: 'ok',
-      });
-      return person;
-    } catch (err: any) {
-      await this.usage.log({
-        workspaceId,
-        provider: 'apollo',
-        model: 'mixed_people_search',
-        operation: 'company_enrichment',
-        byok: true,
-        status: 'error',
-        error: err?.message ?? 'apollo-error',
-      });
-      this.logger.warn(`apollo failed for ${cleanDomain}: ${err?.message ?? err}`);
-=======
     try {
       const searchRes = await this.apollo.searchPeople(workspaceId, {
         domains: [cleanDomain],
@@ -210,7 +154,7 @@ export class EnrichmentService {
       return person;
     } catch (err: any) {
       this.logger.warn(`apollo migration failed for ${cleanDomain}: ${err?.message ?? err}`);
->>>>>>> Stashed changes
+
       return null;
     }
   }

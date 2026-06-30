@@ -10,11 +10,7 @@ import { LinkedInCampaignService } from './linkedin-campaign.service';
 import { LinkedInService } from './linkedin.service';
 import { LinkedInController } from './linkedin.controller';
 import { LinkedInJobProcessor } from './processors/linkedin-job.processor';
-<<<<<<< Updated upstream
 
-@Module({
-  imports: [BullModule.registerQueue({ name: QUEUE_LINKEDIN_JOB })],
-=======
 import { LinkedinProfileScraperService } from './linkedin-profile-scraper.service';
 import { AiModule } from '../ai/ai.module';
 
@@ -22,7 +18,7 @@ const redisEnabled = process.env.REDIS_ENABLED !== 'false';
 
 @Module({
   imports: redisEnabled ? [BullModule.registerQueue({ name: QUEUE_LINKEDIN_JOB }), AiModule] : [AiModule],
->>>>>>> Stashed changes
+
   controllers: [LinkedInController],
   providers: [
     VaultService,
@@ -32,14 +28,10 @@ const redisEnabled = process.env.REDIS_ENABLED !== 'false';
     LinkedInMessagingService,
     LinkedInCampaignService,
     LinkedInService,
-    LinkedInJobProcessor,
-<<<<<<< Updated upstream
-  ],
-  exports: [LinkedInService, LinkedInAccountService, LinkedInCampaignService],
-=======
     LinkedinProfileScraperService,
+    ...(redisEnabled ? [LinkedInJobProcessor] : []),
   ],
   exports: [LinkedInService, LinkedInAccountService, LinkedInCampaignService, LinkedinProfileScraperService],
->>>>>>> Stashed changes
+
 })
 export class LinkedInModule {}

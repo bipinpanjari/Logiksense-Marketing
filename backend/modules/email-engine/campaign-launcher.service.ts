@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-=======
+
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
@@ -22,11 +20,9 @@ export class CampaignLauncherService {
   private readonly logger = new Logger(CampaignLauncherService.name);
 
   constructor(
-<<<<<<< Updated upstream
-    @InjectQueue(QUEUE_EMAIL_SEND) private readonly emailQueue: Queue<EmailSendJobPayload>,
-=======
+
     @Optional() @InjectQueue(QUEUE_EMAIL_SEND) private readonly emailQueue: Queue<EmailSendJobPayload>,
->>>>>>> Stashed changes
+
     private readonly pipeline: PipelineService,
   ) {}
 

@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-=======
+
 import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
@@ -32,11 +30,9 @@ function isScraperSchemaMissingError(err: unknown): boolean {
 export class ScraperSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(ScraperSchedulerService.name);
 
-<<<<<<< Updated upstream
-  constructor(@InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>) {}
-=======
+
   constructor(@Optional() @InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>) {}
->>>>>>> Stashed changes
+
 
   async onModuleInit() {
     if (process.env.SCRAPER_SCHEDULER_ENABLED === 'false') return;

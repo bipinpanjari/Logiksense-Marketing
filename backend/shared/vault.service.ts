@@ -9,6 +9,8 @@ export type VaultScope =
   | 'smtp'
   | 'openai'
   | 'anthropic'
+  | 'gemini'
+  | 'ollama'
   | 'zerobounce'
   | 'apollo'
   | 'linkedin_session'

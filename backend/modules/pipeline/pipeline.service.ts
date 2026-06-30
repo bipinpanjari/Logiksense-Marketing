@@ -46,12 +46,10 @@ export interface TimelineEvent {
     | 'bounced'
     | 'unsubscribed'
     | 'note'
-<<<<<<< Updated upstream
-    | 'stage_change';
-=======
+
     | 'stage_change'
     | 'linkedin_message';
->>>>>>> Stashed changes
+
   data?: Record<string, unknown>;
 }
 
@@ -170,11 +168,7 @@ export class PipelineService {
   async timeline(workspaceId: string, leadId: string) {
     const db = getDatabase();
     const contactRes = await db.query(
-<<<<<<< Updated upstream
-      `SELECT timeline FROM contacts WHERE workspace_id = $1 AND lead_id = $2`,
-      [workspaceId, leadId],
-    );
-=======
+
       `SELECT c.timeline, l.linkedin_url 
        FROM contacts c
        JOIN leads l ON l.id = c.lead_id
@@ -215,7 +209,7 @@ export class PipelineService {
     // Sort all events by date to ensure unified view
     events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
->>>>>>> Stashed changes
+
     const notesRes = await db.query(
       `SELECT cn.id, cn.body, cn.created_at, c.first_name AS author_first_name, c.last_name AS author_last_name
        FROM contact_notes cn
@@ -225,11 +219,9 @@ export class PipelineService {
       [workspaceId, leadId],
     );
     return {
-<<<<<<< Updated upstream
-      events: (contactRes.rows[0]?.timeline as TimelineEvent[]) ?? [],
-=======
+
       events,
->>>>>>> Stashed changes
+
       notes: notesRes.rows,
     };
   }

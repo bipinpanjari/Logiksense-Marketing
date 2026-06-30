@@ -1,0 +1,51 @@
+{
+  "name": "logiksense-desktop",
+  "version": "1.0.0",
+  "description": "LogikSense Marketing Automation Desktop Application",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build:frontend": "node build-desktop.js",
+    "dist": "npm run build:frontend && electron-builder"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.3",
+    "@electric-sql/pglite-socket": "^0.2.4",
+    "cross-spawn": "^7.0.3"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.logiksense.marketing",
+    "productName": "LogikSense Marketing",
+    "includeSubNodeModules": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "settings.html",
+      "onboarding.html",
+      "frontend-dist/**/*",
+      "backend-runtime/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "asarUnpack": [
+      "backend-runtime/**/*"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LogikSense Marketing"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

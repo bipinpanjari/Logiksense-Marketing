@@ -32,22 +32,25 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-<<<<<<< Updated upstream
-  const defaultOrigins = [process.env.FRONTEND_URL || 'http://localhost:3001'];
-=======
+
   const defaultOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:3009',
     'http://localhost:3001',
     'http://localhost:3000',
   ];
->>>>>>> Stashed changes
+
   const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS, defaultOrigins);
 
   app.use(
     cors({
       origin: (origin, callback) => {
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        if (
+          allowedOrigins.includes(origin) ||
+          allowedOrigins.includes('*') ||
+          origin === 'app://.' ||
+          origin.startsWith('chrome-extension://')
+        ) {
           return callback(null, true);
         }
         return callback(new Error(`Origin ${origin} is not allowed by CORS`));

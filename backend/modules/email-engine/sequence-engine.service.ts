@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-=======
+
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
@@ -26,13 +24,10 @@ export class SequenceEngineService {
   private readonly logger = new Logger(SequenceEngineService.name);
 
   constructor(
-<<<<<<< Updated upstream
-    @InjectQueue(QUEUE_EMAIL_SEND) private readonly emailQueue: Queue<EmailSendJobPayload>,
-    @InjectQueue(QUEUE_SEQUENCE_TICK) private readonly tickQueue: Queue<SequenceTickJobPayload>,
-=======
+
     @Optional() @InjectQueue(QUEUE_EMAIL_SEND) private readonly emailQueue: Queue<EmailSendJobPayload>,
     @Optional() @InjectQueue(QUEUE_SEQUENCE_TICK) private readonly tickQueue: Queue<SequenceTickJobPayload>,
->>>>>>> Stashed changes
+
   ) {}
 
   async enrollLead(workspaceId: string, sequenceId: string, leadId: string) {

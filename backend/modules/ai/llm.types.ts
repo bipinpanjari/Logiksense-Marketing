@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-export type LlmVendor = 'openai' | 'anthropic';
-=======
+
 export type LlmVendor = 'openai' | 'anthropic' | 'gemini' | 'ollama';
->>>>>>> Stashed changes
+
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

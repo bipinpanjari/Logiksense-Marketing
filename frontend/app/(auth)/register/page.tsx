@@ -29,12 +29,21 @@ export default function RegisterPage() {
     setSubmitting(true);
     setError("");
     try {
+      console.log(`[Register] Attempting signup at: ${API_URL}/auth/signup`);
       const response = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firstName, lastName, email, password }),
       });
-      if (!response.ok) throw new Error("Registration failed");
+      if (!response.ok) {
+        let errorMsg = "Registration failed";
+        try {
+          const errData = await response.json();
+          errorMsg = errData.message || errData.error || errorMsg;
+        } catch (_) {}
+        console.error(`[Register Error] Server returned status ${response.status}:`, errorMsg);
+        throw new Error(errorMsg);
+      }
       const data = await response.json();
       setSession({
         accessToken: data.tokens.accessToken,
@@ -44,6 +53,7 @@ export default function RegisterPage() {
       });
       router.replace("/onboarding");
     } catch (err: any) {
+      console.error("[Register Error] Signup request failed:", err);
       setError(err?.message || "Registration failed");
     } finally {
       setSubmitting(false);

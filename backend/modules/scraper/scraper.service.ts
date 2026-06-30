@@ -1,8 +1,6 @@
-<<<<<<< Updated upstream
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-=======
+
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
->>>>>>> Stashed changes
+
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { getDatabase } from '../../shared/database';
@@ -16,15 +14,12 @@ export interface CreateProfileInput {
   country?: string;
   query?: string;
   targetLimit?: number;
-<<<<<<< Updated upstream
-  providers?: string[];
-  scheduleCron?: string | null;
-=======
+
   timezone?: string;
   providers?: string[];
   scheduleCron?: string | null;
   scrapeOptions?: any;
->>>>>>> Stashed changes
+
 }
 
 @Injectable()
@@ -32,11 +27,9 @@ export class ScraperService {
   private readonly logger = new Logger(ScraperService.name);
 
   constructor(
-<<<<<<< Updated upstream
-    @InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>,
-=======
+
     @Optional() @InjectQueue(QUEUE_SCRAPER_JOB) private readonly queue: Queue<ScraperJobPayload>,
->>>>>>> Stashed changes
+
     private readonly websiteDigestRepBrief: WebsiteDigestRepBriefService,
   ) {}
 
@@ -44,11 +37,9 @@ export class ScraperService {
     const db = getDatabase();
     const res = await db.query(
       `SELECT id, name, business_type, city, country, query, target_limit, providers,
-<<<<<<< Updated upstream
-              schedule_cron, is_active, created_at, updated_at
-=======
+
               schedule_cron, timezone, is_active, created_at, updated_at
->>>>>>> Stashed changes
+
        FROM search_profiles
        WHERE workspace_id = $1::uuid
        ORDER BY updated_at DESC`,
@@ -65,15 +56,11 @@ export class ScraperService {
     const db = getDatabase();
     const res = await db.query(
       `INSERT INTO search_profiles (workspace_id, customer_id, name, business_type, city, country, query,
-<<<<<<< Updated upstream
-                                     target_limit, providers, schedule_cron)
-       VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
-       RETURNING id, name, business_type, city, country, query, target_limit, providers, schedule_cron, is_active, created_at, updated_at`,
-=======
+
                                      target_limit, timezone, providers, schedule_cron, scrape_options)
        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb)
        RETURNING id, name, business_type, city, country, query, target_limit, timezone, providers, schedule_cron, scrape_options, is_active, created_at, updated_at`,
->>>>>>> Stashed changes
+
       [
         workspaceId,
         customerId,
@@ -83,15 +70,12 @@ export class ScraperService {
         input.country || null,
         query,
         input.targetLimit ?? 10,
-<<<<<<< Updated upstream
-        JSON.stringify(input.providers || ['gmaps']),
-        input.scheduleCron || null,
-=======
+
         input.timezone || 'UTC',
         JSON.stringify(input.providers || ['gmaps']),
         input.scheduleCron || null,
         JSON.stringify(input.scrapeOptions || {}),
->>>>>>> Stashed changes
+
       ],
     );
     return res.rows[0];
@@ -108,10 +92,9 @@ export class ScraperService {
     };
     if (typeof input.name === 'string') push('name', input.name.trim());
     if (typeof input.businessType === 'string') push('business_type', input.businessType.trim());
-<<<<<<< Updated upstream
-=======
+
     if (typeof input.timezone === 'string') push('timezone', input.timezone);
->>>>>>> Stashed changes
+
     if (typeof input.city === 'string') push('city', input.city);
     if (typeof input.country === 'string') push('country', input.country);
     if (typeof input.query === 'string') push('query', input.query.trim());
@@ -122,13 +105,12 @@ export class ScraperService {
     }
     if (typeof input.scheduleCron !== 'undefined') push('schedule_cron', input.scheduleCron || null);
     if (typeof input.isActive === 'boolean') push('is_active', input.isActive);
-<<<<<<< Updated upstream
-=======
+
     if (typeof input.scrapeOptions !== 'undefined') {
       fields.push(`scrape_options = $${idx++}::jsonb`);
       values.push(JSON.stringify(input.scrapeOptions || {}));
     }
->>>>>>> Stashed changes
+
     if (fields.length === 0) throw new BadRequestException('no updatable fields');
 
     values.push(profileId);
@@ -137,11 +119,9 @@ export class ScraperService {
     const res = await db.query(
       `UPDATE search_profiles SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
        WHERE id = $${wid}::uuid AND workspace_id = $${wid + 1}::uuid
-<<<<<<< Updated upstream
-       RETURNING id, name, business_type, city, country, query, target_limit, providers, schedule_cron, is_active, created_at, updated_at`,
-=======
+
        RETURNING id, name, business_type, city, country, query, target_limit, timezone, providers, schedule_cron, scrape_options, is_active, created_at, updated_at`,
->>>>>>> Stashed changes
+
       values,
     );
     if (res.rows.length === 0) throw new NotFoundException('profile not found');
@@ -370,10 +350,9 @@ export class ScraperService {
       city: p.city,
       country: p.country,
       targetLimit: p.target_limit,
-<<<<<<< Updated upstream
-=======
+
       scrapeOptions: p.scrape_options,
->>>>>>> Stashed changes
+
     });
   }
 
@@ -384,10 +363,9 @@ export class ScraperService {
     country?: string;
     targetLimit?: number;
     provider?: string;
-<<<<<<< Updated upstream
-=======
+
     scrapeOptions?: any;
->>>>>>> Stashed changes
+
   }) {
     await this.assertScrapingAllowed(workspaceId);
     const provider = body.provider || 'gmaps';
@@ -402,10 +380,9 @@ export class ScraperService {
       city: body.city,
       country: body.country,
       targetLimit: body.targetLimit ?? 10,
-<<<<<<< Updated upstream
-=======
+
       scrapeOptions: body.scrapeOptions,
->>>>>>> Stashed changes
+
     });
   }
 
@@ -467,21 +444,17 @@ export class ScraperService {
     city?: string;
     country?: string;
     targetLimit: number;
-<<<<<<< Updated upstream
-=======
+
     scrapeOptions?: any;
->>>>>>> Stashed changes
+
   }) {
     const db = getDatabase();
     const ins = await db.query(
       `INSERT INTO scraper_jobs (workspace_id, customer_id, search_profile_id, provider, query,
-<<<<<<< Updated upstream
-                                  business_type, city, country, target_limit, status)
-       VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, 'queued')
-=======
+
                                   business_type, city, country, target_limit, status, scrape_options)
        VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, 'queued', $10::jsonb)
->>>>>>> Stashed changes
+
        RETURNING id`,
       [
         args.workspaceId,
@@ -493,10 +466,9 @@ export class ScraperService {
         args.city || null,
         args.country || null,
         args.targetLimit,
-<<<<<<< Updated upstream
-=======
+
         JSON.stringify(args.scrapeOptions || {}),
->>>>>>> Stashed changes
+
       ],
     );
     const jobId = ins.rows[0].id;

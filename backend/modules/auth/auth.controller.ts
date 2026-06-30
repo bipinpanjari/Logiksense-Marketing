@@ -12,11 +12,9 @@ import {
   GetDNSGuideDto,
   CompleteOnboardingDto,
 } from './registration.dto';
-<<<<<<< Updated upstream
-import { UpdateProfileDto, UpdateWorkspaceSettingsDto } from './account.dto';
-=======
+
 import { UpdateProfileDto, UpdateWorkspaceSettingsDto, ChangePasswordDto } from './account.dto';
->>>>>>> Stashed changes
+
 
 @Controller('api/auth')
 export class AuthController {
@@ -42,8 +40,7 @@ export class AuthController {
     return this.authService.refreshToken(refreshToken);
   }
 
-<<<<<<< Updated upstream
-=======
+
   @Post('forgot-password')
   async forgotPassword(@Body('email') email: string) {
     return this.authService.forgotPassword(email);
@@ -54,7 +51,7 @@ export class AuthController {
     return this.authService.resetPassword(token, password);
   }
 
->>>>>>> Stashed changes
+
   @Get('me')
   async getMe(@Request() req: any) {
     if (!req.user) {
@@ -92,8 +89,7 @@ export class AuthController {
     return this.authService.updateProfile(req.user.userId, payload);
   }
 
-<<<<<<< Updated upstream
-=======
+
   @Post('change-password')
   async changePassword(@Request() req: any, @Body() payload: ChangePasswordDto) {
     if (!req.user) {
@@ -106,7 +102,7 @@ export class AuthController {
     );
   }
 
->>>>>>> Stashed changes
+
   @Get('settings')
   async getSettings(@Request() req: any) {
     if (!req.user) {
@@ -205,8 +201,7 @@ export class AuthController {
     const sessionId = req.params.sessionId;
     return this.registrationService.getSessionStatus(sessionId);
   }
-<<<<<<< Updated upstream
-=======
+
 
   // ==================== 2FA / MFA ====================
 
@@ -232,5 +227,5 @@ export class AuthController {
   async authenticate2fa(@Body() body: { tempToken: string; code: string }) {
     return this.authService.loginWithMfa(body.tempToken, body.code);
   }
->>>>>>> Stashed changes
+
 }

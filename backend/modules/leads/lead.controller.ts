@@ -19,10 +19,9 @@ import { LeadImportService } from './lead-import.service';
 import { LeadScoringService } from './lead-scoring.service';
 import { ContactSegmentationService, SegmentCriteria } from './contact-segmentation.service';
 import { EmailAnalyticsService } from './email-analytics.service';
-<<<<<<< Updated upstream
-=======
+
 import { FieldManagementService } from './field-management.service';
->>>>>>> Stashed changes
+
 
 @Controller('api/leads')
 export class LeadController {
@@ -31,12 +30,10 @@ export class LeadController {
     private leadImportService: LeadImportService,
     private leadScoringService: LeadScoringService,
     private segmentationService: ContactSegmentationService,
-<<<<<<< Updated upstream
-    private emailAnalyticsService: EmailAnalyticsService
-=======
+
     private emailAnalyticsService: EmailAnalyticsService,
     private fieldManagementService: FieldManagementService
->>>>>>> Stashed changes
+
   ) {}
 
   private requireAuth(req: any) {
@@ -192,8 +189,7 @@ export class LeadController {
     return this.leadImportService.getImportHistory(user.workspaceId);
   }
 
-<<<<<<< Updated upstream
-=======
+
   // ===== FIELD MANAGEMENT =====
 
   @Get(':id/fields')
@@ -242,7 +238,7 @@ export class LeadController {
     return this.fieldManagementService.getStandardFields();
   }
 
->>>>>>> Stashed changes
+
   // ===== LEAD SCORING =====
 
   private defaultScoringCriteria = {
@@ -379,6 +375,15 @@ export class LeadController {
   // ===== EMAIL ANALYTICS (workspace/campaign level) =====
   // Lead-level email analytics lives with the other :id routes at the bottom.
 
+  @Get('analytics/campaigns/top')
+  async getTopCampaigns(@Query('limit') limit?: string, @Request() req?: any) {
+    const user = this.requireAuth(req);
+    return this.emailAnalyticsService.getTopCampaigns(
+      user.workspaceId,
+      limit ? parseInt(limit) : 10
+    );
+  }
+
   @Get('analytics/campaigns/:campaignId')
   async getCampaignAnalytics(@Param('campaignId') campaignId: string, @Request() req: any) {
     this.requireAuth(req);
@@ -389,15 +394,6 @@ export class LeadController {
   async getWorkspaceAnalyticsSummary(@Request() req: any) {
     const user = this.requireAuth(req);
     return this.emailAnalyticsService.getWorkspaceAnalyticsSummary(user.workspaceId);
-  }
-
-  @Get('analytics/campaigns/top')
-  async getTopCampaigns(@Query('limit') limit?: string, @Request() req?: any) {
-    const user = this.requireAuth(req);
-    return this.emailAnalyticsService.getTopCampaigns(
-      user.workspaceId,
-      limit ? parseInt(limit) : 10
-    );
   }
 
   @Get('analytics/most-engaged')

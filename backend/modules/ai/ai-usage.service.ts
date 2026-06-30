@@ -4,11 +4,9 @@ import { getDatabase } from '../../shared/database';
 export interface UsageEvent {
   workspaceId: string;
   customerId?: string | null;
-<<<<<<< Updated upstream
-  provider: 'openai' | 'anthropic' | 'platform' | 'zerobounce' | 'apollo';
-=======
+
   provider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'platform' | 'zerobounce' | 'apollo';
->>>>>>> Stashed changes
+
   model: string;
   operation: string;
   inputTokens?: number | null;

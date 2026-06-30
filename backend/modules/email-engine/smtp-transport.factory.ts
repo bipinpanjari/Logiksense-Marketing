@@ -10,22 +10,20 @@ export interface ResolvedEmailConfig {
   customerId: string;
   sendingEmail: string;
   smtpFromName?: string | null;
-<<<<<<< Updated upstream
-=======
+
   signatureHtml?: string | null;
->>>>>>> Stashed changes
+
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
   smtpUser?: string | null;
   smtpPassword?: string | null;
-<<<<<<< Updated upstream
-=======
+
   authType?: string | null;
   oauth2ClientId?: string | null;
   oauth2ClientSecret?: string | null;
   oauth2RefreshToken?: string | null;
->>>>>>> Stashed changes
+
 }
 
 class SmtpTransportAdapter implements EmailTransport {
@@ -60,18 +58,7 @@ export class SmtpTransportFactory {
   async loadWorkspaceConfig(workspaceId: string): Promise<ResolvedEmailConfig | null> {
     const db = getDatabase();
     const res = await db.query(
-<<<<<<< Updated upstream
-      `SELECT id, workspace_id, customer_id, sending_email, smtp_from_name,
-              smtp_host, smtp_port, smtp_user, smtp_password_encrypted
-       FROM email_configs
-       WHERE workspace_id = $1 AND is_active = true
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [workspaceId],
-    );
-    if (res.rows.length === 0) return null;
-    const row = res.rows[0];
-=======
+
       `SELECT ec.id, ec.workspace_id, ec.customer_id, ec.sending_email, ec.smtp_from_name,
               ec.signature_html,
               ec.smtp_host, ec.smtp_port, ec.smtp_user, ec.smtp_password_encrypted,
@@ -96,7 +83,7 @@ export class SmtpTransportFactory {
     });
     const row = availableConfig || res.rows[0];
 
->>>>>>> Stashed changes
+
     const port = Number(row.smtp_port) || 587;
     const password = row.smtp_password_encrypted
       ? safeDecrypt(row.smtp_password_encrypted)
@@ -107,22 +94,20 @@ export class SmtpTransportFactory {
       customerId: row.customer_id,
       sendingEmail: row.sending_email,
       smtpFromName: row.smtp_from_name,
-<<<<<<< Updated upstream
-=======
+
       signatureHtml: row.signature_html,
->>>>>>> Stashed changes
+
       smtpHost: row.smtp_host,
       smtpPort: port,
       smtpSecure: port === 465,
       smtpUser: row.smtp_user,
       smtpPassword: password,
-<<<<<<< Updated upstream
-=======
+
       authType: row.auth_type,
       oauth2ClientId: row.oauth2_client_id,
       oauth2ClientSecret: row.oauth2_client_secret_encrypted ? safeDecrypt(row.oauth2_client_secret_encrypted) : null,
       oauth2RefreshToken: row.oauth2_refresh_token_encrypted ? safeDecrypt(row.oauth2_refresh_token_encrypted) : null,
->>>>>>> Stashed changes
+
     };
   }
 
@@ -133,18 +118,7 @@ export class SmtpTransportFactory {
       );
     }
     const host = config.smtpHost === 'localhost' ? '127.0.0.1' : config.smtpHost;
-<<<<<<< Updated upstream
-    const auth =
-      config.smtpUser && config.smtpPassword
-        ? { user: config.smtpUser, pass: config.smtpPassword }
-        : undefined;
-    const transporter = nodemailer.createTransport({
-      host,
-      port: config.smtpPort,
-      secure: config.smtpSecure,
-      auth,
-    });
-=======
+
     
     let transporter: nodemailer.Transporter;
 
@@ -174,7 +148,7 @@ export class SmtpTransportFactory {
       });
     }
 
->>>>>>> Stashed changes
+
     return new SmtpTransportAdapter(transporter);
   }
 }

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup Connection - LogikSense</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.6);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --input-bg: rgba(31, 41, 55, 0.5);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --input-focus: #818cf8;
+      --card-hover: rgba(99, 102, 241, 0.15);
+      --card-active: rgba(99, 102, 241, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 24px;
+      background-image: radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 100% 100%, rgba(79, 70, 229, 0.1) 0%, transparent 50%);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(to right, #a5b4fc, #818cf8, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p.subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .option-card {
+      background: rgba(31, 41, 55, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .option-card:hover {
+      background: var(--card-hover);
+      border-color: var(--primary);
+      transform: translateY(-4px);
+    }
+
+    .option-card.active {
+      background: var(--card-active);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .icon {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      color: var(--primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 50%;
+    }
+
+    .option-card.active .icon {
+      background: var(--primary);
+      color: white;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Forms */
+    .form-section {
+      background: rgba(17, 24, 39, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 24px;
+      display: none;
+    }
+
+    .form-section.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    button {
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      background-color: var(--primary);
+      color: white;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Configure LogikSense</h1>
+      <p class="subtitle">Set up how this client connects to your marketing database</p>
+    </header>
+
+    <div class="options-grid">
+      <!-- Host Server Option -->
+      <div class="option-card" id="card-host" onclick="selectMode('host')">
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+        </div>
+        <h2>Host Server (Standalone)</h2>
+        <p class="desc">Create and run the database locally on this PC. Select this for standalone use or for the office main server.</p>
+      </div>
+
+      <!-- Network Client Option -->
+      <div class="option-card" id="card-client" onclick="selectMode('client')">
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+        <h2>Join Office Server</h2>
+        <p class="desc">Connect to a database already hosted on another PC in your office. Select this for staff workstation setups.</p>
+      </div>
+
+      <!-- Cloud Option -->
+      <div class="option-card" id="card-cloud" onclick="selectMode('cloud')">
+        <div class="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+        </div>
+        <h2>Connect to Cloud</h2>
+        <p class="desc">Connect directly to a hosted cloud database instance. Select this if you have a hosted web application.</p>
+      </div>
+    </div>
+
+    <!-- Host Form -->
+    <div id="form-host" class="form-section">
+      <h3 style="margin-bottom: 12px; font-weight: 600;">Standalone Host Confirmation</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px;">
+        Clicking the button below will start the local WASM database (PGlite) and boot the local NestJS backend server. 
+        Your data will be stored securely on this computer under your user folder. 
+        Other machines in your network can connect to this PC by typing this machine's IP address.
+      </p>
+      <div class="actions">
+        <button onclick="saveSetup('host', 'http://localhost:3000/api', '')">Launch Standalone Server</button>
+      </div>
+    </div>
+
+    <!-- Client Form -->
+    <div id="form-client" class="form-section">
+      <h3 style="margin-bottom: 16px; font-weight: 600;">Office Network Configuration</h3>
+      <form onsubmit="handleClientSubmit(event)">
+        <div class="form-group">
+          <label for="host-ip">Host Server IP Address or Machine Name</label>
+          <input type="text" id="host-ip" placeholder="192.168.1.50" required>
+          <p class="hint">Type the local IP address or name of the computer hosting the LogikSense Server in your office (e.g. 192.168.1.50).</p>
+        </div>
+        <div class="actions">
+          <button type="submit">Connect to Office Server</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Cloud Form -->
+    <div id="form-cloud" class="form-section">
+      <h3 style="margin-bottom: 16px; font-weight: 600;">Cloud Server Configuration</h3>
+      <form onsubmit="handleCloudSubmit(event)">
+        <div class="form-group">
+          <label for="cloud-api-url">Backend API Endpoint URL</label>
+          <input type="url" id="cloud-api-url" placeholder="https://api.logiksense.com" required>
+          <p class="hint">The API URL of your deployed NestJS backend (e.g., https://api.yourdomain.com/api).</p>
+        </div>
+        <div class="form-group">
+          <label for="cloud-frontend-url">Remote Frontend URL (Optional)</label>
+          <input type="url" id="cloud-frontend-url" placeholder="https://app.logiksense.com">
+          <p class="hint">Leave blank to use the local desktop UI. Input a URL to load the remote website directly inside this window.</p>
+        </div>
+        <div class="actions">
+          <button type="submit">Connect to Cloud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let selectedModeStr = '';
+
+    function selectMode(mode) {
+      selectedModeStr = mode;
+      
+      // Toggle card active states
+      document.querySelectorAll('.option-card').forEach(card => card.classList.remove('active'));
+      document.getElementById(`card-${mode}`).classList.add('active');
+
+      // Toggle form displays
+      document.querySelectorAll('.form-section').forEach(form => form.classList.remove('active'));
+      document.getElementById(`form-${mode}`).classList.add('active');
+    }
+
+    function saveSetup(mode, apiUrl, frontendUrl) {
+      if (window.desktopEnv && window.desktopEnv.saveWizardConfig) {
+        window.desktopEnv.saveWizardConfig(mode, apiUrl, frontendUrl);
+      }
+    }
+
+    function handleClientSubmit(e) {
+      e.preventDefault();
+      const hostIp = document.getElementById('host-ip').value.trim();
+      // Format host IP into a full API URL
+      let formattedUrl = hostIp;
+      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+        formattedUrl = `http://${formattedUrl}`;
+      }
+      if (!formattedUrl.includes(':3000')) {
+        formattedUrl = `${formattedUrl}:3000`;
+      }
+      if (!formattedUrl.endsWith('/api')) {
+        formattedUrl = `${formattedUrl}/api`;
+      }
+      saveSetup('client', formattedUrl, '');
+    }
+
+    function handleCloudSubmit(e) {
+      e.preventDefault();
+      const apiUrl = document.getElementById('cloud-api-url').value.trim();
+      const frontendUrl = document.getElementById('cloud-frontend-url').value.trim();
+      saveSetup('cloud', apiUrl, frontendUrl);
+    }
+  </script>
+</body>
+</html>

@@ -2,23 +2,18 @@ import { Injectable } from '@nestjs/common';
 import * as dns from 'dns';
 import * as nodemailer from 'nodemailer';
 import { promisify } from 'util';
-<<<<<<< Updated upstream
 
-const resolveMx = promisify(dns.resolveMx);
-const resolveTxt = promisify(dns.resolveTxt);
-=======
 import { exec } from 'child_process';
 
 const resolveMx = promisify(dns.resolveMx);
 const resolveTxt = promisify(dns.resolveTxt);
 const execAsync = promisify(exec);
->>>>>>> Stashed changes
+
 
 @Injectable()
 export class EmailValidationService {
   /**
-<<<<<<< Updated upstream
-=======
+
    * Helper to resolve DNS TXT records with a fallback to shell command on Windows
    */
   private async safeResolveTxt(domain: string): Promise<string[][]> {
@@ -91,7 +86,7 @@ export class EmailValidationService {
   }
 
   /**
->>>>>>> Stashed changes
+
    * Verify email ownership by sending verification link
    */
   async sendVerificationEmail(email: string, verificationCode: string): Promise<boolean> {
@@ -167,20 +162,7 @@ export class EmailValidationService {
       // DKIM record is typically at: selector._domainkey.domain
       const dkimDomain = `${selector}._domainkey.${domain}`;
 
-<<<<<<< Updated upstream
-      const txtRecords = await resolveTxt(dkimDomain);
-      
-      if (txtRecords && txtRecords.length > 0) {
-        const record = txtRecords.map(r => r.join('')).join('');
-        
-        // Check if it contains DKIM v=DKIM1 marker
-        if (record.includes('v=DKIM1')) {
-          return {
-            valid: true,
-            record: record.substring(0, 100) + '...',
-          };
-        }
-=======
+
       // Try TXT first
       try {
         const txtRecords = await this.safeResolveTxt(dkimDomain);
@@ -205,26 +187,20 @@ export class EmailValidationService {
         }
       } catch (e: any) {
         // Ignore errors
->>>>>>> Stashed changes
+
       }
 
       return {
         valid: false,
         error: 'DKIM record not found or invalid format',
       };
-<<<<<<< Updated upstream
-    } catch (error) {
-      console.error(`DKIM validation failed for ${domain}:`, error);
-      return {
-        valid: false,
-        error: 'Failed to query DKIM record. Make sure domain is correct.',
-=======
+
     } catch (error: any) {
       console.error(`DKIM validation failed for ${domain}:`, error);
       return {
         valid: false,
         error: `Failed to query DKIM record: ${error.message || 'Unknown error'}`,
->>>>>>> Stashed changes
+
       };
     }
   }
@@ -239,29 +215,23 @@ export class EmailValidationService {
     error?: string;
   }> {
     try {
-<<<<<<< Updated upstream
-      const txtRecords = await resolveTxt(domain);
-=======
+
       const txtRecords = await this.safeResolveTxt(domain);
->>>>>>> Stashed changes
+
 
       if (txtRecords && txtRecords.length > 0) {
         const spfRecord = txtRecords
           .map(r => r.join(''))
-<<<<<<< Updated upstream
-          .find(record => record.startsWith('v=spf1'));
-=======
+
           .find(record => record.toLowerCase().startsWith('v=spf1'));
->>>>>>> Stashed changes
+
 
         if (spfRecord) {
           return {
             valid: true,
-<<<<<<< Updated upstream
-            record: spfRecord.substring(0, 100) + '...',
-=======
+
             record: spfRecord.length > 100 ? spfRecord.substring(0, 100) + '...' : spfRecord,
->>>>>>> Stashed changes
+
           };
         }
       }
@@ -270,19 +240,13 @@ export class EmailValidationService {
         valid: false,
         error: 'SPF record not found. Add SPF record to DNS TXT records.',
       };
-<<<<<<< Updated upstream
-    } catch (error) {
-      console.error(`SPF validation failed for ${domain}:`, error);
-      return {
-        valid: false,
-        error: 'Failed to query SPF record. Make sure domain is correct.',
-=======
+
     } catch (error: any) {
       console.error(`SPF validation failed for ${domain}:`, error);
       return {
         valid: false,
         error: `Failed to query SPF record: ${error.message || 'Unknown error'}`,
->>>>>>> Stashed changes
+
       };
     }
   }
@@ -299,31 +263,25 @@ export class EmailValidationService {
   }> {
     try {
       const dmarcDomain = `_dmarc.${domain}`;
-<<<<<<< Updated upstream
-      const txtRecords = await resolveTxt(dmarcDomain);
-=======
+
       const txtRecords = await this.safeResolveTxt(dmarcDomain);
->>>>>>> Stashed changes
+
 
       if (txtRecords && txtRecords.length > 0) {
         const record = txtRecords
           .map((r) => r.join(''))
-<<<<<<< Updated upstream
-          .find((r) => r.startsWith('v=DMARC1'));
-=======
+
           .find((r) => r.toUpperCase().startsWith('V=DMARC1'));
->>>>>>> Stashed changes
+
 
         if (record) {
           const policyMatch = /p=(none|quarantine|reject)/i.exec(record);
           const policy = policyMatch
             ? (policyMatch[1].toLowerCase() as 'none' | 'quarantine' | 'reject')
             : undefined;
-<<<<<<< Updated upstream
-          return { valid: true, record, policy };
-=======
+
           return { valid: true, record: record.length > 100 ? record.substring(0, 100) + '...' : record, policy };
->>>>>>> Stashed changes
+
         }
       }
 
@@ -331,19 +289,13 @@ export class EmailValidationService {
         valid: false,
         error: 'DMARC record not found. Add a TXT record at _dmarc.' + domain,
       };
-<<<<<<< Updated upstream
-    } catch (error) {
-      console.error(`DMARC validation failed for ${domain}:`, error);
-      return {
-        valid: false,
-        error: 'Failed to query DMARC record. Make sure domain is correct.',
-=======
+
     } catch (error: any) {
       console.error(`DMARC validation failed for ${domain}:`, error);
       return {
         valid: false,
         error: `Failed to query DMARC record: ${error.message || 'Unknown error'}`,
->>>>>>> Stashed changes
+
       };
     }
   }
