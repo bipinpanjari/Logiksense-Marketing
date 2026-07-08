@@ -358,6 +358,8 @@ model EmailConfig {
   oauth2ClientId        String?    @map("oauth2_client_id") @db.VarChar(255)
   oauth2ClientSecretEnc String?    @map("oauth2_client_secret_encrypted") @db.VarChar(500)
   oauth2RefreshToken    String?    @map("oauth2_refresh_token_encrypted")
+  oauth2AccessToken     String?    @map("oauth2_access_token_encrypted") @db.VarChar(1000)
+  oauth2TokenExpiresAt  DateTime?  @map("oauth2_token_expires_at") @db.Timestamp(6)
   oauth2TenantId        String?    @map("oauth2_tenant_id") @db.VarChar(255)
   customer              Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workspace             Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

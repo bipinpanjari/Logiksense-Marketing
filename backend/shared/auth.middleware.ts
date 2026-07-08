@@ -73,6 +73,7 @@ export class AuthMiddleware implements NestMiddleware {
       '/api/track/',
       '/api/unsubscribe/',
       '/api/inbound/',
+      '/api/email/oauth/microsoft-callback',
       '/metrics',
     ];
     return publicRoutes.some(route => path.startsWith(route));

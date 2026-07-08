@@ -59,6 +59,8 @@ export interface EmailConfigPublic {
   oauth2TenantId: string | null;
   hasClientSecret: boolean;
   hasRefreshToken: boolean;
+  hasAccessToken: boolean;
+  oauth2TokenExpiresAt: string | null;
 
 }
 
@@ -121,11 +123,17 @@ export class EmailService {
     const sendingEmail = (input.sendingEmail || '').trim().toLowerCase();
     const domain = (input.domain || '').trim().toLowerCase();
     const smtpHost = (input.smtpHost || '').trim();
-
+    const authType = input.authType || 'BASIC';
 
     if (!sendingEmail || !sendingEmail.includes('@')) throw new BadRequestException('Invalid sendingEmail');
     if (!domain) throw new BadRequestException('Invalid domain');
-    if (!smtpHost) throw new BadRequestException('Invalid smtpHost');
+    
+    // Only require smtpHost for BASIC auth (SMTP)
+    if (authType === 'BASIC' && !smtpHost) throw new BadRequestException('Invalid smtpHost');
+    // For OAuth2, require client ID and tenant ID
+    if (authType === 'OAUTH2' && (!input.oauth2ClientId || !input.oauth2TenantId)) {
+      throw new BadRequestException('OAuth2 requires clientId and tenantId');
+    }
 
     const smtpPort = input.smtpPort ?? 587;
     if (!Number.isFinite(smtpPort) || smtpPort <= 0 || smtpPort > 65535) throw new BadRequestException('Invalid smtpPort');
@@ -163,10 +171,17 @@ export class EmailService {
     const sendingEmail = (input.sendingEmail || '').trim().toLowerCase();
     const domain = (input.domain || '').trim().toLowerCase();
     const smtpHost = (input.smtpHost || '').trim();
+    const authType = input.authType || 'BASIC';
 
     if (!sendingEmail || !sendingEmail.includes('@')) throw new BadRequestException('Invalid sendingEmail');
     if (!domain) throw new BadRequestException('Invalid domain');
-    if (!smtpHost) throw new BadRequestException('Invalid smtpHost');
+    
+    // Only require smtpHost for BASIC auth (SMTP)
+    if (authType === 'BASIC' && !smtpHost) throw new BadRequestException('Invalid smtpHost');
+    // For OAuth2, require client ID and tenant ID
+    if (authType === 'OAUTH2' && (!input.oauth2ClientId || !input.oauth2TenantId)) {
+      throw new BadRequestException('OAuth2 requires clientId and tenantId');
+    }
     const smtpPort = input.smtpPort ?? 587;
 
     const existing = await db.query(`SELECT id, smtp_password_encrypted, oauth2_client_secret_encrypted, oauth2_refresh_token_encrypted FROM email_configs WHERE id = $1 AND workspace_id = $2`, [id, workspaceId]);
@@ -257,7 +272,8 @@ export class EmailService {
 
 
     try {
-      await transporter.sendMail({
+      console.log('[sendTestEmail DEBUG] About to send email to:', recipient);
+      const result = await transporter.sendMail({
         from,
         to: recipient,
         subject: subject?.trim() || 'Test email from Logik Sense',
@@ -270,8 +286,9 @@ export class EmailService {
              <p><strong>Workspace:</strong> ${workspaceId}</p>
            </div>`,
       });
+      console.log('[sendTestEmail DEBUG] Email sent successfully:', result?.messageId || result?.response);
     } catch (err: any) {
-      console.error('SMTP Send Error:', err);
+      console.error('[sendTestEmail DEBUG] Email send error:', err.message || err);
       throw new BadRequestException(`SMTP Error: ${err.message || 'Failed to send'}`);
     }
 
@@ -324,7 +341,8 @@ export class EmailService {
 
     const clientId = raw.oauth2_client_id;
     const tenantId = raw.oauth2_tenant_id || 'common';
-    const redirectUri = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/email/oauth/callback`;
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+    const redirectUri = `${backendUrl}/api/email/oauth/microsoft-callback`;
     
     const scope = encodeURIComponent('https://outlook.office.com/SMTP.Send offline_access');
     const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${scope}&state=${configId}`;
@@ -339,7 +357,8 @@ export class EmailService {
     const clientId = raw.oauth2_client_id;
     const clientSecret = raw.oauth2_client_secret_encrypted ? decryptSmtpPassword(raw.oauth2_client_secret_encrypted) : '';
     const tenantId = raw.oauth2_tenant_id || 'common';
-    const redirectUri = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/email/oauth/callback`;
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+    const redirectUri = `${backendUrl}/api/email/oauth/microsoft-callback`;
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const body = new URLSearchParams({
@@ -363,20 +382,56 @@ export class EmailService {
     }
 
     const refreshToken = data.refresh_token;
+    const accessToken = data.access_token;
+    const expiresIn = data.expires_in || 3600; // Default 1 hour
     const encryptedRefreshToken = encryptSmtpPassword(refreshToken);
+    const encryptedAccessToken = encryptSmtpPassword(accessToken);
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+    console.log('[handleMicrosoftCallback DEBUG] OAuth tokens received:', {
+      hasRefreshToken: !!refreshToken,
+      hasAccessToken: !!accessToken,
+      expiresIn,
+      expiresAt: expiresAt.toISOString(),
+    });
 
     await db.query(
-      `UPDATE email_configs SET oauth2_refresh_token_encrypted = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND customer_id = $3`,
-      [encryptedRefreshToken, configId, customerId]
+      `UPDATE email_configs SET oauth2_refresh_token_encrypted = $1, oauth2_access_token_encrypted = $2, oauth2_token_expires_at = $3, auth_type = 'OAUTH2', updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND customer_id = $5`,
+      [encryptedRefreshToken, encryptedAccessToken, expiresAt, configId, customerId]
     );
 
     return { ok: true };
 
   }
 
+  async handleMicrosoftCallbackPublic(configId: string, code: string): Promise<{ redirect: string; message: string }> {
+    const db = getDatabase();
+    
+    // Look up the config to get the customerId
+    const configResult = await db.query(
+      `SELECT customer_id FROM email_configs WHERE id = $1::uuid`,
+      [configId]
+    );
+    
+    if (configResult.rows.length === 0) {
+      throw new BadRequestException('Configuration not found');
+    }
+    
+    const customerId = configResult.rows[0].customer_id;
+    
+    // Call the existing handler
+    await this.handleMicrosoftCallback(customerId, configId, code);
+    
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    return {
+      redirect: `${frontendUrl}/email/settings?oauth_success=true`,
+      message: 'OAuth authentication successful! You may now close this window.'
+    };
+  }
+
   private async getRawConfigById(id: string, customerId: string): Promise<any> {
     const db = getDatabase();
-    const result = await db.query(`SELECT * FROM email_configs WHERE id = $1 AND customer_id = $2`, [id, customerId]);
+    const result = await db.query(`SELECT * FROM email_configs WHERE id = $1::uuid AND customer_id = $2::uuid`, [id, customerId]);
 
     if (result.rows.length === 0) throw new ForbiddenException('Email config not found');
 
@@ -386,29 +441,79 @@ export class EmailService {
   private buildTransporter(raw: any) {
     const port = raw.smtp_port ? Number(raw.smtp_port) : 587;
     const secure = port === 465;
+    const authType = raw.auth_type || 'BASIC';
 
+    console.log('[buildTransporter DEBUG] auth_type from DB:', raw.auth_type, 'final authType:', authType, 'configId:', raw.id);
+
+    if (authType === 'OAUTH2') {
+      console.log('[buildTransporter DEBUG] Using OAuth2 branch');
+      const smtpHost = 'smtp.office365.com';
+      const tenantId = raw.oauth2_tenant_id || 'common';
+      const sendingEmail = (raw.sending_email || '').trim().toLowerCase();
+      
+      if (!sendingEmail) throw new BadRequestException('Sending email is not configured.');
+      if (!raw.oauth2_client_id) throw new BadRequestException('OAuth2 client ID is not configured.');
+      if (!raw.oauth2_refresh_token_encrypted) throw new BadRequestException('OAuth2 refresh token is not configured. Please authenticate first.');
+      
+      const clientSecret = raw.oauth2_client_secret_encrypted ? decryptSmtpPassword(raw.oauth2_client_secret_encrypted) : '';
+      const refreshToken = decryptSmtpPassword(raw.oauth2_refresh_token_encrypted);
+      
+      // Check if access token is available and not expired
+      let accessToken: string | undefined;
+      if (raw.oauth2_access_token_encrypted && raw.oauth2_token_expires_at) {
+        const expiresAt = new Date(raw.oauth2_token_expires_at);
+        const now = new Date();
+        if (expiresAt > now) {
+          try {
+            accessToken = decryptSmtpPassword(raw.oauth2_access_token_encrypted);
+            console.log('[buildTransporter DEBUG] Using cached access token (expires at:', expiresAt.toISOString(), ')');
+          } catch (e) {
+            console.log('[buildTransporter DEBUG] Failed to decrypt access token, will rely on refresh token');
+          }
+        } else {
+          console.log('[buildTransporter DEBUG] Access token expired, will use refresh token');
+        }
+      }
+      
+      console.log('[buildTransporter DEBUG] OAuth2 config:', {
+        user: sendingEmail,
+        clientId: raw.oauth2_client_id,
+        hasClientSecret: !!clientSecret,
+        hasRefreshToken: !!refreshToken,
+        hasAccessToken: !!accessToken,
+        tenantId,
+      });
+      
+      const authConfig: any = {
+        type: 'OAuth2',
+        user: sendingEmail,
+        clientId: raw.oauth2_client_id,
+        clientSecret,
+        refreshToken,
+        accessUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      };
+
+      // Include accessToken if available (will be used first, then refreshed if needed)
+      if (accessToken) {
+        authConfig.accessToken = accessToken;
+      }
+      
+      return nodemailer.createTransport({
+        host: smtpHost,
+        port: 587,
+        secure: false,
+        connectionTimeout: 30_000,
+        greetingTimeout: 15_000,
+        socketTimeout: 30_000,
+        auth: authConfig,
+      });
+    }
+
+    // BASIC (SMTP) authentication
+    console.log('[buildTransporter DEBUG] Using BASIC SMTP branch');
     const hostRaw = typeof raw.smtp_host === 'string' ? raw.smtp_host.trim() : '';
     if (!hostRaw) throw new BadRequestException('SMTP host is not configured.');
     const smtpHost = hostRaw === 'localhost' ? '127.0.0.1' : hostRaw;
-
-    const authType = raw.auth_type || 'BASIC';
-
-    if (authType === 'OAUTH2') {
-      const tenantId = raw.oauth2_tenant_id || 'common';
-      return nodemailer.createTransport({
-        host: smtpHost,
-        port,
-        secure,
-        auth: {
-          type: 'OAuth2',
-          user: raw.smtp_user,
-          clientId: raw.oauth2_client_id,
-          clientSecret: raw.oauth2_client_secret_encrypted ? decryptSmtpPassword(raw.oauth2_client_secret_encrypted) : undefined,
-          refreshToken: raw.oauth2_refresh_token_encrypted ? decryptSmtpPassword(raw.oauth2_refresh_token_encrypted) : undefined,
-          accessUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-        },
-      });
-    }
 
     const hasAuth = Boolean(raw.smtp_user) && Boolean(raw.smtp_password_encrypted);
 
@@ -460,6 +565,8 @@ export class EmailService {
       oauth2TenantId: row.oauth2_tenant_id ?? null,
       hasClientSecret: Boolean(row.oauth2_client_secret_encrypted),
       hasRefreshToken: Boolean(row.oauth2_refresh_token_encrypted),
+      hasAccessToken: Boolean(row.oauth2_access_token_encrypted),
+      oauth2TokenExpiresAt: row.oauth2_token_expires_at ? new Date(row.oauth2_token_expires_at).toISOString() : null,
     };
   }
 }

@@ -29,6 +29,22 @@ export class EmailController {
     return configs.length > 0 ? configs[0] : null;
   }
 
+  @Put('config')
+  async updateDefaultConfig(@Request() req: RequestWithUser, @Body() body: UpsertEmailConfigInput) {
+    const workspaceId = req.user?.workspaceId;
+    const customerId = req.user?.userId;
+    if (!workspaceId || !customerId) throw new UnauthorizedException('Not authenticated');
+    
+    // Get the default config (first one) and update it
+    const configs = await this.emailService.getActiveConfigs(workspaceId, customerId);
+    if (configs.length === 0) {
+      // If no config exists, create one
+      return this.emailService.createConfig(workspaceId, customerId, body);
+    }
+    // Update the first config
+    return this.emailService.updateConfig(workspaceId, customerId, configs[0].id, body);
+  }
+
   @Post('configs')
   async createConfig(@Request() req: RequestWithUser, @Body() body: UpsertEmailConfigInput) {
     const workspaceId = req.user?.workspaceId;
@@ -94,11 +110,11 @@ export class EmailController {
     return this.emailService.getMicrosoftAuthUrl(customerId, id);
   }
 
-  @Post('oauth/microsoft-callback')
-  async microsoftCallback(@Request() req: RequestWithUser, @Body() body: { code: string; configId: string }) {
-    const customerId = req.user?.userId;
-    if (!customerId) throw new UnauthorizedException();
-    return this.emailService.handleMicrosoftCallback(customerId, body.configId, body.code);
+  @Get('oauth/microsoft-callback')
+  async microsoftCallback(@Request() req: any) {
+    const { code, state } = req.query;
+    if (!code || !state) throw new UnauthorizedException('Missing code or state parameter');
+    return this.emailService.handleMicrosoftCallbackPublic(state, code);
   }
 }
 
